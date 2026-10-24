@@ -1,0 +1,23 @@
+# Replace the placeholders with each member's real GitHub username before enabling
+# "Require review from Code Owners" in Settings > Branches > main.
+# Feature Set A - Chetana V Iyer
+/src/controllers/authController.js        @CHETANA_GH
+/src/controllers/workspaceController.js   @CHETANA_GH
+/src/middleware/authMiddleware.js         @CHETANA_GH
+/src/services/rbacService.js              @CHETANA_GH
+# Feature Set B - Dhadhal Rudra
+/src/controllers/taskController.js        @Master-rudra1
+/src/controllers/subtaskController.js     @Master-rudra1
+/src/services/fileUploadService.js        @Master-rudra1
+/src/middleware/validationMiddleware.js   @Master-rudra1
+# Feature Set C - Gagan B Sasalatti
+/src/services/taskDragDrop.js             @GAGAN_GH
+/src/services/searchService.js            @GAGAN_GH
+/src/components/                          @GAGAN_GH
+# Feature Set D - Harsh Pandya
+/src/services/analyticsService.js         @HARSH_GH
+/src/services/reportExporter.js           @HARSH_GH
+/src/controllers/notifController.js       @HARSH_GH
+/src/services/auditLogger.js              @HARSH_GH
+# Shared / CI - repo owners
+/.github/                                 @Master-rudra1
