@@ -13,7 +13,11 @@ class NotificationController {
    */
   async getUserNotifications(req, res) {
     try {
-      const userId = req.user ? req.user.userId : req.params.userId;
+      const requestedUserId = req.params.userId;
+      if (req.user && requestedUserId && requestedUserId !== req.user.userId) {
+        return res.status(403).json({ success: false, error: 'Forbidden', message: 'You may only view your own notifications.' });
+      }
+      const userId = req.user ? req.user.userId : requestedUserId;
       if (!userId) {
         return res.status(400).json({ success: false, error: 'User ID is required.' });
       }
@@ -37,6 +41,13 @@ class NotificationController {
   async markRead(req, res) {
     try {
       const { notifId } = req.params;
+      const notification = [...db.notifications.values()].find(n => n.notification_id === notifId);
+      if (!notification) {
+        return res.status(404).json({ success: false, error: 'Notification not found.' });
+      }
+      if (req.user && notification.user_id !== req.user.userId) {
+        return res.status(403).json({ success: false, error: 'Forbidden', message: 'You may only update your own notifications.' });
+      }
       const success = db.markNotificationAsRead(notifId);
       if (!success) {
         return res.status(404).json({ success: false, error: 'Notification not found.' });
@@ -66,6 +77,12 @@ class NotificationController {
         if (dueDate <= next24Hours) {
           const assignees = task.assignees || [];
           assignees.forEach(uid => {
+            const alreadyDispatched = db.getNotificationsForUser(uid).some(notification =>
+              notification.type === 'DEADLINE' &&
+              notification.target_entity_id === task.task_id &&
+              Date.now() - new Date(notification.created_at).getTime() < 24 * 60 * 60 * 1000
+            );
+            if (alreadyDispatched) return;
             const notif = db.createNotification({
               user_id: uid,
               title: 'Approaching Deadline Alert (24h)',

@@ -6,7 +6,7 @@ const crypto = require('crypto');
  * Owner: Chetana V Iyer (PES1UG24CS130) | ARC-AUTH | DSN-01
  */
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pes_u_se_team4_super_secure_jwt_secret_2026';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
 function base64UrlEncode(str) {
   return Buffer.from(str)
@@ -49,6 +49,18 @@ function verifyJWT(token) {
   if (parts.length !== 3) return null;
 
   const [encodedHeader, encodedPayload, signature] = parts;
+  let header;
+  let payload;
+
+  try {
+    header = JSON.parse(base64UrlDecode(encodedHeader));
+    payload = JSON.parse(base64UrlDecode(encodedPayload));
+  } catch {
+    return null;
+  }
+
+  if (header.alg !== 'HS256' || header.typ !== 'JWT') return null;
+
   const expectedSignature = crypto
     .createHmac('sha256', JWT_SECRET)
     .update(`${encodedHeader}.${encodedPayload}`)
@@ -57,17 +69,20 @@ function verifyJWT(token) {
     .replace(/\+/g, '-')
     .replace(/\//g, '_');
 
-  if (signature !== expectedSignature) return null;
-
-  try {
-    const payload = JSON.parse(base64UrlDecode(encodedPayload));
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null; // Expired
-    }
-    return payload;
-  } catch (e) {
+  const actualSignature = Buffer.from(signature);
+  const expected = Buffer.from(expectedSignature);
+  if (
+    actualSignature.length !== expected.length ||
+    !crypto.timingSafeEqual(actualSignature, expected)
+  ) {
     return null;
   }
+
+  if (typeof payload.exp !== 'number' || payload.exp <= Math.floor(Date.now() / 1000)) {
+    return null;
+  }
+
+  return payload;
 }
 
 /**
@@ -84,7 +99,9 @@ function verifyPassword(password, storedPasswordHash) {
   if (!storedPasswordHash || !storedPasswordHash.includes(':')) return false;
   const [salt, originalHash] = storedPasswordHash.split(':');
   const testHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(testHash), Buffer.from(originalHash));
+  const actual = Buffer.from(testHash);
+  const expected = Buffer.from(originalHash);
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
 /**

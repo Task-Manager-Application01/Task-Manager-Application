@@ -1,5 +1,12 @@
 const crypto = require('crypto');
 
+function deepFreeze(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  Object.values(value).forEach(deepFreeze);
+  return value;
+}
+
 /**
  * Enterprise Transactional Database Store for Task Manager Application
  * Supports Multi-tenant Workspaces, RBAC, Tasks, Subtasks, Attachments, Notifications, and Audit Logs.
@@ -475,6 +482,7 @@ class Database {
 
   // --- Audit Log (Feature 8: REQ-8.3 Immutable Timeline) ---
   logAuditEvent({ workspace_id, actor_id, action, target_entity, target_id, details = {} }) {
+    const immutableDetails = deepFreeze(JSON.parse(JSON.stringify(details)));
     const entry = {
       log_id: crypto.randomUUID(),
       workspace_id,
@@ -482,7 +490,7 @@ class Database {
       action, // e.g. 'TASK_CREATED', 'STATUS_UPDATED', 'MEMBER_INVITED'
       target_entity, // 'TASK', 'SUBTASK', 'WORKSPACE', 'ATTACHMENT'
       target_id,
-      details,
+      details: immutableDetails,
       timestamp: new Date().toISOString()
     };
     // Append-only freeze
@@ -492,7 +500,12 @@ class Database {
   }
 
   getAuditLogs(workspace_id) {
-    return this.auditLogs.filter(log => !workspace_id || log.workspace_id === workspace_id);
+    return this.auditLogs
+      .filter(log => !workspace_id || log.workspace_id === workspace_id)
+      .map(log => ({
+        ...log,
+        details: { ...log.details }
+      }));
   }
 }
 
