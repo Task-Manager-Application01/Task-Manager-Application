@@ -110,6 +110,25 @@ class Database {
     return { ...ws };
   }
 
+  listWorkspacesForUser(userId) {
+    if (!userId) return [];
+
+    const results = [];
+
+    for (const membership of this.memberships.values()) {
+      if (membership.user_id !== userId) continue;
+
+      const workspace = this.getWorkspace(membership.workspace_id);
+      if (!workspace) continue;
+
+      results.push({
+        ...workspace,
+        role: membership.role
+      });
+    }
+
+    return results;
+  }
   updateWorkspace(workspaceId, updates) {
     const ws = this.workspaces.get(workspaceId);
     if (!ws || ws.is_archived) return null;
