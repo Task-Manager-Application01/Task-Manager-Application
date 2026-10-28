@@ -12,6 +12,33 @@ class WorkspaceController {
    * REQ-2.1 (Workspace Creation):
    * Authenticated user instantiates workspace with custom title and team description.
    */
+  async listWorkspaces(req, res) {
+    try {
+      const userId = req.user && req.user.userId;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          message: 'A valid authentication token is required.'
+        });
+      }
+
+      const workspaces = db.listWorkspacesForUser(userId);
+
+      return res.status(200).json({
+        success: true,
+        count: workspaces.length,
+        data: workspaces
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Unable to retrieve workspaces.'
+      });
+    }
+  }
   async createWorkspace(req, res) {
     try {
       const { title, description } = req.body;

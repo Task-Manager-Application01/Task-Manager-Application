@@ -96,6 +96,9 @@ function createServer() {
       }
 
       // 3. Workspace & RBAC Routes (Feature 2)
+      if (method === 'GET' && pathname === '/api/v1/workspaces') {
+        return await workspaceController.listWorkspaces(req, res);
+      }
       if (method === 'POST' && pathname === '/api/v1/workspaces') {
         return await workspaceController.createWorkspace(req, res);
       }
