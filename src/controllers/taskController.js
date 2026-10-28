@@ -1,3 +1,8 @@
+/**
+ * Feature 3: Task Lifecycle & Core CRUD Operations
+ * Implemented by: Dhadhal Rudra (PES1UG24CS146) | Team #4 (Section C)
+ * Requirements: REQ-3.1, REQ-3.2, REQ-3.3
+ */
 const { db } = require('../models/Database');
 const auditLogger = require('../services/auditLogger');
 const {
