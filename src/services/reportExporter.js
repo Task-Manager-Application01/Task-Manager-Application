@@ -51,7 +51,7 @@ class ReportExporter {
       escapeCsvField(t.updated_at)
     ].join(','));
 
-    return [headers.join(','), ...rows].join('\n');
+    return [headers.join(','), ...rows].join('\r\n');
   }
 
   /**
