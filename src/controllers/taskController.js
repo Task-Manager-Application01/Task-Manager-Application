@@ -182,12 +182,28 @@ class TaskController {
         updates.tags = req.body.tags.map(sanitizeString);
       }
 
+      const previousStatus = existingTask.status;
+      const actorId = req.user ? req.user.userId : 'USER';
       const updatedTask = db.updateTask(taskId, updates);
+
+      // REQ-8.1: Notify assignees when this update changes the task's status
+      if (updatedTask.status !== previousStatus) {
+        (updatedTask.assignees || []).forEach(assigneeId => {
+          if (assigneeId === actorId) return;
+          db.createNotification({
+            user_id: assigneeId,
+            title: 'Task Status Updated',
+            message: `Task '${updatedTask.title}' moved from '${previousStatus}' to '${updatedTask.status}'.`,
+            type: 'STATUS_CHANGE',
+            target_entity_id: taskId
+          });
+        });
+      }
 
       // Audit Log Entry
       auditLogger.log({
         workspaceId: updatedTask.workspace_id,
-        actorId: req.user ? req.user.userId : 'USER',
+        actorId,
         action: 'TASK_UPDATED',
         targetEntity: 'TASK',
         targetId: taskId,
