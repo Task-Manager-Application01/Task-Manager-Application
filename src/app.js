@@ -261,6 +261,16 @@ function createServer() {
         return await notifController.markRead(req, res);
       }
       if (method === 'POST' && pathname === '/api/v1/notifications/trigger-deadline-alerts') {
+        const workspaceId = req.body.workspace_id;
+        if (!workspaceId) {
+          return res.status(400).json({ success: false, error: 'Validation Error', message: 'workspace_id is required.' });
+        }
+        if (!db.getWorkspace(workspaceId)) {
+          return res.status(404).json({ success: false, error: 'Not Found', message: 'Workspace not found.' });
+        }
+        if (rbacService.getUserRole(workspaceId, req.user.userId) !== 'Admin') {
+          return res.status(403).json({ success: false, error: 'Forbidden', message: 'Only Workspace Admins may trigger deadline alerts.' });
+        }
         return await notifController.triggerDeadlineCheck(req, res);
       }
       const wsAuditMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/audit-logs$/);
