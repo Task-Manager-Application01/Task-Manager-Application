@@ -222,7 +222,11 @@ function createServer() {
       const analyticsKpiMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/analytics\/kpi$/);
       if (method === 'GET' && analyticsKpiMatch) {
         if (!requireWorkspaceAccess(req, res, analyticsKpiMatch[1])) return;
-        const metrics = analyticsService.getKPIMetrics(analyticsKpiMatch[1]);
+        const rawSprintDays = req.query.sprint_days;
+        if (rawSprintDays !== undefined && !/^[1-9]\d{0,2}$/.test(rawSprintDays)) {
+          return res.status(400).json({ success: false, error: 'Validation Error', message: 'sprint_days must be a whole number from 1 to 999.' });
+        }
+        const metrics = analyticsService.getKPIMetrics(analyticsKpiMatch[1], rawSprintDays === undefined ? undefined : Number(rawSprintDays));
         return res.status(200).json({ success: true, data: metrics });
       }
       const analyticsDistMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/analytics\/distribution$/);
