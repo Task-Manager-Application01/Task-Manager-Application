@@ -99,10 +99,24 @@ test('Feature Set D: Analytics, Reporting & Audit System (Harsh Pandya - PES1UG2
     assert.ok(csvContent.startsWith('"Task ID","Workspace ID","Title"'));
     assert.ok(csvContent.includes('"Reportable Item 1"'));
 
+    // RFC 4180: CRLF between records, with quotes, commas and newlines kept in quoted fields
+    assert.equal(csvContent.split('\r\n').length, 2);
+
     // Structured Document summary
     const summary = reportExporter.exportToDocumentSummary(workspaceId);
     assert.equal(summary.task_count, 1);
     assert.equal(summary.tasks[0].title, 'Reportable Item 1');
+
+    db.createTask({
+      workspace_id: workspaceId,
+      title: 'Has "quotes", commas\nand a newline',
+      priority: 'Medium',
+      status: 'To-Do',
+      created_by: user1.user_id
+    });
+    const escapedCsv = reportExporter.exportToCSV(workspaceId);
+    assert.equal(escapedCsv.split('\r\n').length, 3);
+    assert.ok(escapedCsv.includes('"Has ""quotes"", commas\nand a newline"'));
   });
 
   await t.test('UT-NOTIF-01: In-App Notification Center with Read/Unread Tracking', async () => {
