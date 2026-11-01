@@ -5,6 +5,7 @@ const { createServer } = require('../src/app');
 const { db } = require('../src/models/Database');
 const { generateJWT } = require('../src/middleware/authMiddleware');
 const deadlineScheduler = require('../src/services/deadlineScheduler');
+const emailService = require('../src/services/emailService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const soon = () => new Date(Date.now() + DAY_MS / 2).toISOString();
@@ -62,7 +63,36 @@ test('REQ-8.2: deadline scheduler', async t => {
     workspace = db.createWorkspace({ title: 'Deadlines', owner_id: owner.user_id });
   });
 
-  t.afterEach(() => deadlineScheduler.stop());
+  t.afterEach(() => {
+    deadlineScheduler.stop();
+    emailService.setTransport();
+  });
+
+  await t.test('emails each alert once through the replaceable sender', async () => {
+    const sent = [];
+    emailService.setTransport(message => { sent.push(message); });
+    makeTask(workspace.workspace_id, owner.user_id, assignee.user_id, { title: 'Email me' });
+
+    deadlineScheduler.runCheck();
+    deadlineScheduler.runCheck();
+    await new Promise(setImmediate);
+
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, assignee.email);
+    assert.match(sent[0].text, /Email me/);
+  });
+
+  await t.test('a failing sender does not stop in-app notifications', async t2 => {
+    const logged = t2.mock.method(console, 'error', () => {});
+    emailService.setTransport(() => { throw new Error('SMTP down'); });
+    makeTask(workspace.workspace_id, owner.user_id, assignee.user_id);
+
+    assert.equal(deadlineScheduler.runCheck().length, 1);
+    await new Promise(setImmediate);
+
+    assert.equal(deadlineAlerts(assignee.user_id).length, 1);
+    assert.equal(logged.mock.callCount(), 1);
+  });
 
   await t.test('alerts only for open tasks due within 24 hours', () => {
     makeTask(workspace.workspace_id, owner.user_id, assignee.user_id);

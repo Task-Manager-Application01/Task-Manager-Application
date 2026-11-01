@@ -1,4 +1,5 @@
 const { db } = require('../models/Database');
+const emailService = require('./emailService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;
@@ -31,13 +32,19 @@ class DeadlineScheduler {
     tasks.forEach(task => {
       (task.assignees || []).forEach(userId => {
         if (this.wasRecentlyAlerted(userId, task.task_id, now)) return;
-        alerts.push(db.createNotification({
+        const notification = db.createNotification({
           user_id: userId,
           title: 'Approaching Deadline Alert (24h)',
           message: `Task '${task.title}' is due on ${task.due_date}. Please complete required deliverables.`,
           type: 'DEADLINE',
           target_entity_id: task.task_id
-        }));
+        });
+        alerts.push(notification);
+
+        const user = db.getUser(userId);
+        if (user && user.email) {
+          emailService.send({ to: user.email, subject: notification.title, text: notification.message });
+        }
       });
     });
     return alerts;
