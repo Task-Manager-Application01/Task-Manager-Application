@@ -58,12 +58,12 @@ class SearchService {
         if (!assignees.includes(assigneeId)) return false;
       }
 
-      // Date range filtering
-      if (startDate && task.due_date) {
-        if (new Date(task.due_date) < new Date(startDate)) return false;
-      }
-      if (endDate && task.due_date) {
-        if (new Date(task.due_date) > new Date(endDate)) return false;
+      // Date range filtering: tasks with no due date never match a range
+      if (startDate || endDate) {
+        if (!task.due_date) return false;
+        const due = new Date(task.due_date);
+        if (startDate && due < new Date(startDate)) return false;
+        if (endDate && due > new Date(endDate)) return false;
       }
 
       // Composite tag filtering
