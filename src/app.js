@@ -308,7 +308,10 @@ function createServer() {
       if (singleSubtaskMatch) {
         req.params.subtaskId = singleSubtaskMatch[1];
         const subtask = db.getSubtask(req.params.subtaskId);
-        if (!subtask || !requireTaskAccess(req, res, subtask.task_id, method !== 'GET')) return;
+        if (!subtask) {
+          return res.status(404).json({ success: false, error: 'Not Found', message: 'Subtask not found.' });
+        }
+        if (!requireTaskAccess(req, res, subtask.task_id, method !== 'GET')) return;
         if (method === 'PUT') return await subtaskController.updateSubtask(req, res);
         if (method === 'DELETE') return await subtaskController.deleteSubtask(req, res);
       }

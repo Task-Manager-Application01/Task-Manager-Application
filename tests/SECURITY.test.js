@@ -102,4 +102,20 @@ test('HTTP authorization protects workspace data and request identity', async t 
     headers: { Authorization: `Bearer ${outsiderToken}` }
   });
   assert.equal(crossWorkspace.statusCode, 403);
+
+  const missingSubtaskPath = '/api/v1/subtasks/does-not-exist';
+  const missingSubtaskUpdate = await request(server, {
+    method: 'PUT',
+    path: missingSubtaskPath,
+    headers
+  }, {});
+  assert.equal(missingSubtaskUpdate.statusCode, 404);
+
+  const missingSubtaskDelete = await request(server, {
+    method: 'DELETE',
+    path: missingSubtaskPath,
+    headers
+  });
+  assert.equal(missingSubtaskDelete.statusCode, 404);
+  assert.equal(missingSubtaskDelete.data.message, 'Subtask not found.');
 });
