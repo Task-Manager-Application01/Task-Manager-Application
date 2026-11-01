@@ -1,4 +1,5 @@
 const { db } = require('../models/Database');
+const deadlineScheduler = require('../services/deadlineScheduler');
 
 /**
  * Notification Controller
@@ -61,39 +62,12 @@ class NotificationController {
 
   /**
    * REQ-8.2 (Automated Deadline Alerts):
-   * Scans tasks approaching deadlines within 24 hours and dispatches alerts to assignees.
+   * Runs the deadline check on demand. The route limits this to one workspace's Admins.
    */
   async triggerDeadlineCheck(req, res) {
     try {
-      const now = new Date();
-      const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      const activeTasks = db.findTasks(t => t.status !== 'Done' && t.due_date);
-
-      const generatedAlerts = [];
-
-      activeTasks.forEach(task => {
-        const dueDate = new Date(task.due_date);
-        // If due date is within the next 24 hours (or overdue)
-        if (dueDate <= next24Hours) {
-          const assignees = task.assignees || [];
-          assignees.forEach(uid => {
-            const alreadyDispatched = db.getNotificationsForUser(uid).some(notification =>
-              notification.type === 'DEADLINE' &&
-              notification.target_entity_id === task.task_id &&
-              Date.now() - new Date(notification.created_at).getTime() < 24 * 60 * 60 * 1000
-            );
-            if (alreadyDispatched) return;
-            const notif = db.createNotification({
-              user_id: uid,
-              title: 'Approaching Deadline Alert (24h)',
-              message: `Task '${task.title}' is due on ${task.due_date}. Please complete required deliverables.`,
-              type: 'DEADLINE',
-              target_entity_id: task.task_id
-            });
-            generatedAlerts.push(notif);
-          });
-        }
-      });
+      const workspaceId = req.body ? req.body.workspace_id : undefined;
+      const generatedAlerts = deadlineScheduler.runCheck({ workspaceId });
 
       return res.status(200).json({
         success: true,
