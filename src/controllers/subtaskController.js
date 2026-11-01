@@ -1,5 +1,17 @@
 const { db } = require('../models/Database');
 const { sanitizeString } = require('../middleware/validationMiddleware');
+const auditLogger = require('../services/auditLogger');
+
+function logSubtaskEvent(req, task, action, targetId, details) {
+  auditLogger.log({
+    workspaceId: task.workspace_id,
+    actorId: req.user ? req.user.userId : 'USER',
+    action,
+    targetEntity: 'SUBTASK',
+    targetId,
+    details
+  });
+}
 
 /**
  * Subtask Controller (Owner: Dhadhal Rudra | PES1UG24CS146)
@@ -41,6 +53,7 @@ class SubtaskController {
       });
 
       const updatedTask = db.getTask(taskId);
+      logSubtaskEvent(req, parentTask, 'SUBTASK_CREATED', subtask.subtask_id, { task_id: taskId, title: subtask.title });
 
       return res.status(201).json({
         success: true,
@@ -124,6 +137,9 @@ class SubtaskController {
 
       const updated = db.updateSubtask(subtaskId, updates);
       const parentTask = db.getTask(existing.task_id);
+      if (parentTask) {
+        logSubtaskEvent(req, parentTask, 'SUBTASK_UPDATED', subtaskId, { task_id: existing.task_id, ...updates });
+      }
 
       return res.status(200).json({
         success: true,
@@ -159,6 +175,10 @@ class SubtaskController {
       }
 
       const reordered = db.reorderSubtasks(taskId, orderedSubtaskIds);
+      const parentTask = db.getTask(taskId);
+      if (parentTask) {
+        logSubtaskEvent(req, parentTask, 'SUBTASKS_REORDERED', taskId, { task_id: taskId, ordered_subtask_ids: orderedSubtaskIds });
+      }
       return res.status(200).json({
         success: true,
         message: 'Subtasks reordered successfully',
@@ -192,6 +212,9 @@ class SubtaskController {
       const taskId = existing.task_id;
       db.deleteSubtask(subtaskId);
       const parentTask = db.getTask(taskId);
+      if (parentTask) {
+        logSubtaskEvent(req, parentTask, 'SUBTASK_DELETED', subtaskId, { task_id: taskId, title: existing.title });
+      }
 
       return res.status(200).json({
         success: true,
