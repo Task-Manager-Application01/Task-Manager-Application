@@ -1,5 +1,6 @@
 const { db } = require('../models/Database');
 const rbacService = require('../services/rbacService');
+const auditLogger = require('../services/auditLogger');
 const { sanitizeString } = require('../middleware/validationMiddleware');
 
 /**
@@ -166,6 +167,15 @@ class WorkspaceController {
         return res.status(404).json({ success: false, error: 'Not Found', message: 'Workspace not found.' });
       }
 
+      auditLogger.log({
+        workspaceId,
+        actorId,
+        action: 'WORKSPACE_UPDATED',
+        targetEntity: 'WORKSPACE',
+        targetId: workspaceId,
+        details: updates
+      });
+
       return res.status(200).json({
         success: true,
         message: 'Workspace settings updated.',
@@ -197,6 +207,15 @@ class WorkspaceController {
       if (!success) {
         return res.status(404).json({ success: false, error: 'Not Found', message: 'Workspace not found.' });
       }
+
+      auditLogger.log({
+        workspaceId,
+        actorId,
+        action: 'WORKSPACE_ARCHIVED',
+        targetEntity: 'WORKSPACE',
+        targetId: workspaceId,
+        details: {}
+      });
 
       return res.status(200).json({
         success: true,

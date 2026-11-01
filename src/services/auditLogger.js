@@ -16,13 +16,14 @@ class AuditLoggerService {
       throw new Error('Audit log entry requires action and targetEntity.');
     }
 
+    const immutableDetails = JSON.parse(JSON.stringify(details));
     return db.logAuditEvent({
       workspace_id: workspaceId,
       actor_id: actorId || 'SYSTEM',
       action,
       target_entity: targetEntity,
       target_id: targetId,
-      details
+      details: immutableDetails
     });
   }
 
