@@ -1,4 +1,5 @@
 const { db } = require('../models/Database');
+const { buildPdf } = require('./pdfDocument');
 
 /**
  * Report Exporter Service
@@ -82,6 +83,33 @@ class ReportExporter {
         }))
       }))
     };
+  }
+
+  /**
+   * REQ-7.3: Generates the progress summary as a PDF document
+   */
+  exportToPDF(workspaceId) {
+    const report = this.exportToDocumentSummary(workspaceId);
+    const lines = [
+      `Workspace: ${report.workspace.title}`,
+      `Generated: ${report.report_generated_at}`,
+      `Tasks: ${report.task_count}`,
+      ''
+    ];
+
+    report.tasks.forEach(task => {
+      lines.push(
+        task.title,
+        `  Priority: ${task.priority} | Status: ${task.status} | Progress: ${task.progress} | Due: ${task.due_date}`,
+        `  Assignees: ${task.assignees.length ? task.assignees.join(', ') : 'None'}`
+      );
+      task.subtasks.forEach(subtask => {
+        lines.push(`  [${subtask.completed ? 'x' : ' '}] ${subtask.title}`);
+      });
+      lines.push('');
+    });
+
+    return buildPdf('Task Progress Report', lines);
   }
 }
 
