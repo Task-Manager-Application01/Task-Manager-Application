@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const path = require('path');
 const { db } = require('../models/Database');
+const auditLogger = require('./auditLogger');
 
 /**
  * File Upload & Attachment Service (Owner: Dhadhal Rudra | PES1UG24CS146)
@@ -96,6 +97,15 @@ class FileUploadService {
       storage_path: storagePath,
       download_token: downloadToken,
       uploaded_by: uploadedBy
+    });
+
+    auditLogger.log({
+      workspaceId: parentTask.workspace_id,
+      actorId: uploadedBy,
+      action: 'ATTACHMENT_UPLOADED',
+      targetEntity: 'ATTACHMENT',
+      targetId: attachmentRecord.attachment_id,
+      details: { task_id: taskId, file_name: sanitizedFileName, file_size: fileSize }
     });
 
     const secureDownloadUrl = `/api/v1/attachments/download/${downloadToken}`;
