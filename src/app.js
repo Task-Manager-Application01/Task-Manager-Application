@@ -239,6 +239,15 @@ function createServer() {
         res.setHeader('Content-Disposition', `attachment; filename=report_${reportCsvMatch[1]}.csv`);
         return res.end(csv);
       }
+      const reportPdfMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/reports\/pdf$/);
+      if (method === 'GET' && reportPdfMatch) {
+        if (!requireWorkspaceAccess(req, res, reportPdfMatch[1])) return;
+        const pdf = reportExporter.exportToPDF(reportPdfMatch[1]);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', pdf.length);
+        res.setHeader('Content-Disposition', `attachment; filename=report_${reportPdfMatch[1]}.pdf`);
+        return res.end(pdf);
+      }
       const reportSummaryMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/reports\/summary$/);
       if (method === 'GET' && reportSummaryMatch) {
         if (!requireWorkspaceAccess(req, res, reportSummaryMatch[1])) return;
