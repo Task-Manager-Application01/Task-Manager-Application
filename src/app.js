@@ -1,5 +1,7 @@
 const http = require('http');
 const url = require('url');
+const fs = require('fs');
+const path = require('path');
 const authController = require('./controllers/authController');
 const workspaceController = require('./controllers/workspaceController');
 const taskController = require('./controllers/taskController');
@@ -114,6 +116,14 @@ function createServer() {
             { name: 'Harsh Pandya', srn: 'PES1UG24CS182', role: 'Analytics & Notifications' }
           ]
         });
+      }
+
+      // Analytics charts page (REQ-7.2). It holds no data; the page signs in to call the API.
+      if (method === 'GET' && pathname === '/analytics') {
+        const page = await fs.promises.readFile(path.join(__dirname, 'public', 'analytics.html'));
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('X-Frame-Options', 'DENY');
+        return res.end(page);
       }
 
       // 2. Authentication Routes (Feature 1)

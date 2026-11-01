@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workspace Analytics</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9; --surface: #ffffff; --text: #1c2128; --muted: #5b6470; --border: #d8dde3;
+    --track: #e9ecf0; --accent: #2f6fde; --done: #1f8a5b; --error: #b3261e;
+    --todo: #6b7685; --progress: #2f6fde; --review: #b26a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b; --surface: #1d2126; --text: #e8eaed; --muted: #a2abb5; --border: #363c44;
+      --track: #2c3137; --accent: #76a5f5; --done: #4cc38a; --error: #f2857d;
+      --todo: #9aa5b1; --progress: #76a5f5; --review: #e0a040;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
+  h1 { margin: 0 0 24px; font-size: 1.6rem; }
+  h2 { margin: 0 0 16px; font-size: 1.1rem; }
+  section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; margin-bottom: 12px; font-weight: 600; }
+  input, select { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  button { padding: 8px 16px; font: inherit; font-weight: 600; color: #fff; background: #2460c8; border: 0; border-radius: 6px; cursor: pointer; }
+  [hidden] { display: none !important; }
+  #error { color: var(--error); margin: 12px 0 0; }
+  .row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 76px; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .name { overflow-wrap: anywhere; }
+  .track { height: 18px; background: var(--track); border-radius: 4px; overflow: hidden; }
+  .bar { display: block; height: 100%; }
+  .value { text-align: right; font-variant-numeric: tabular-nums; }
+  .legend { color: var(--muted); font-size: .875rem; margin: 12px 0 0; }
+  .empty { color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Workspace Analytics</h1>
+
+  <section id="login-section">
+    <h2>Sign in</h2>
+    <form id="login-form">
+      <label>Email <input id="email" type="email" autocomplete="username" required></label>
+      <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <section id="workspace-section" hidden>
+    <label>Workspace <select id="workspace"></select></label>
+  </section>
+
+  <section id="status-section" hidden>
+    <h2>Status distribution</h2>
+    <div id="status-chart"></div>
+  </section>
+
+  <section id="workload-section" hidden>
+    <h2>Member workload</h2>
+    <div id="workload-chart"></div>
+    <p class="legend">Bar length shows assigned tasks, and green shows completed tasks. Numbers are completed / assigned.</p>
+  </section>
+
+  <p id="error" role="alert" hidden></p>
+</main>
+
+<script>
+  const STATUS_COLORS = {
+    'To-Do': 'var(--todo)',
+    'In-Progress': 'var(--progress)',
+    'Review': 'var(--review)',
+    'Done': 'var(--done)'
+  };
+
+  let token = null;
+  const el = id => document.getElementById(id);
+
+  function showError(message) {
+    el('error').textContent = message;
+    el('error').hidden = !message;
+  }
+
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(path, { ...options, headers });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || payload.error || 'Request failed.');
+    return payload.data;
+  }
+
+  function barRow(name, percent, color, valueText) {
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const label = document.createElement('span');
+    label.className = 'name';
+    label.textContent = name;
+
+    const track = document.createElement('span');
+    track.className = 'track';
+    const bar = document.createElement('span');
+    bar.className = 'bar';
+    bar.style.width = `${percent}%`;
+    bar.style.background = color;
+    track.append(bar);
+
+    const value = document.createElement('span');
+    value.className = 'value';
+    value.textContent = valueText;
+
+    row.append(label, track, value);
+    return row;
+  }
+
+  function emptyMessage(text) {
+    const message = document.createElement('p');
+    message.className = 'empty';
+    message.textContent = text;
+    return message;
+  }
+
+  function renderStatus(distribution) {
+    const entries = Object.entries(distribution);
+    const total = entries.reduce((sum, [, count]) => sum + count, 0);
+    const rows = total === 0
+      ? [emptyMessage('No tasks in this workspace yet.')]
+      : entries.map(([status, count]) =>
+          barRow(status, (count / total) * 100, STATUS_COLORS[status] || 'var(--accent)', String(count)));
+    el('status-chart').replaceChildren(...rows);
+  }
+
+  function renderWorkload(workload) {
+    const mostAssigned = Math.max(0, ...workload.map(member => member.assigned_count));
+    const rows = workload.length === 0
+      ? [emptyMessage('No tasks are assigned yet.')]
+      : workload.map(member => {
+          const row = barRow(
+            member.name,
+            (member.assigned_count / mostAssigned) * 100,
+            'var(--progress)',
+            `${member.completed_count} / ${member.assigned_count}`
+          );
+          const completed = document.createElement('span');
+          completed.className = 'bar';
+          completed.style.width = `${(member.completed_count / member.assigned_count) * 100}%`;
+          completed.style.background = 'var(--done)';
+          row.querySelector('.bar').append(completed);
+          return row;
+        });
+    el('workload-chart').replaceChildren(...rows);
+  }
+
+  async function loadCharts() {
+    showError('');
+    try {
+      const workspaceId = encodeURIComponent(el('workspace').value);
+      const data = await api(`/api/v1/workspaces/${workspaceId}/analytics/distribution`);
+      renderStatus(data.status_distribution);
+      renderWorkload(data.member_workload);
+      el('status-section').hidden = false;
+      el('workload-section').hidden = false;
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  el('workspace').addEventListener('change', loadCharts);
+
+  el('login-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    showError('');
+    try {
+      const auth = await api('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: el('email').value, password: el('password').value })
+      });
+      token = auth.token;
+      el('password').value = '';
+
+      const workspaces = await api('/api/v1/workspaces');
+      el('login-section').hidden = true;
+      if (workspaces.length === 0) {
+        showError('You are not a member of any workspace yet.');
+        return;
+      }
+      el('workspace').replaceChildren(...workspaces.map(workspace => {
+        const option = document.createElement('option');
+        option.value = workspace.workspace_id;
+        option.textContent = workspace.title;
+        return option;
+      }));
+      el('workspace-section').hidden = false;
+      await loadCharts();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+</script>
+</body>
+</html>
