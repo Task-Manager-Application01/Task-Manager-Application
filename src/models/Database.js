@@ -413,6 +413,8 @@ class Database {
   // --- Attachments ---
   createAttachment(attachmentData) {
     const attachmentId = attachmentData.attachment_id || crypto.randomUUID();
+    const uploadedAt = attachmentData.uploaded_at || new Date().toISOString();
+    const expiresAt = attachmentData.expires_at || new Date(new Date(uploadedAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
     const attachment = {
       attachment_id: attachmentId,
       task_id: attachmentData.task_id,
@@ -424,7 +426,8 @@ class Database {
       uploaded_by: attachmentData.uploaded_by,
       is_archived: false,
       deleted_at: null,
-      uploaded_at: new Date().toISOString()
+      uploaded_at: uploadedAt,
+      expires_at: expiresAt
     };
     this.attachments.set(attachmentId, attachment);
     return { ...attachment };

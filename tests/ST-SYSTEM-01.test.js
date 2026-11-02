@@ -437,6 +437,37 @@ test('System Integration: End-to-End Task & Subtask Lifecycle', async (t) => {
         downloadRes.data.data.file_name,
         'system_architecture.pdf'
       );
+
+      // Invalid link returns 404
+      const invalidRes = await request(server, {
+        method: 'GET',
+        path: '/api/v1/attachments/download/invalid-token-12345'
+      });
+      assert.equal(invalidRes.statusCode, 404);
+      assert.equal(invalidRes.data.message, 'Invalid or expired link.');
+
+      // Expired link returns same 404 response
+      const attachmentId = uploadRes.data.data.attachment.attachment_id;
+      const attRecord = db.attachments.get(attachmentId);
+      attRecord.expires_at = new Date(Date.now() - 1000).toISOString();
+
+      const expiredRes = await request(server, {
+        method: 'GET',
+        path: downloadUrl
+      });
+      assert.equal(expiredRes.statusCode, 404);
+      assert.deepEqual(expiredRes.data, invalidRes.data);
+
+      // Archived link returns same 404 response
+      attRecord.expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      attRecord.is_archived = true;
+
+      const archivedRes = await request(server, {
+        method: 'GET',
+        path: downloadUrl
+      });
+      assert.equal(archivedRes.statusCode, 404);
+      assert.deepEqual(archivedRes.data, invalidRes.data);
     }
   );
 });

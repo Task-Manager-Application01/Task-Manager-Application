@@ -104,7 +104,7 @@ test('UT-FILE-01: File Upload Validation & Secure Storage Services', async (t) =
     }
   });
 
-  await t.test('REQ-4.3: Secure download token authorization', async () => {
+  await t.test('REQ-4.3: Secure download token authorization and 24-hour expiry', async () => {
     const uploadResult = await fileUploadService.processAttachment({
       taskId: parentTaskId,
       fileName: 'final_report.pdf',
@@ -114,14 +114,30 @@ test('UT-FILE-01: File Upload Validation & Secure Storage Services', async (t) =
     });
 
     const token = uploadResult.attachment.download_token;
+    const attachmentId = uploadResult.attachment.attachment_id;
 
-    // Verify token retrieval
+    // 1. Valid token retrieval
     const retrievedAttachment = fileUploadService.verifyDownloadToken(token);
     assert.ok(retrievedAttachment);
     assert.equal(retrievedAttachment.file_name, 'final_report.pdf');
 
-    // Invalid token rejected
+    // 2. Invalid token rejected
     const invalidRetrieval = fileUploadService.verifyDownloadToken('invalid-fake-token');
     assert.equal(invalidRetrieval, null);
+
+    // 3. Expired token rejected (past 24 hours)
+    const futureTimeAfter25Hours = new Date(Date.now() + 25 * 60 * 60 * 1000);
+    const expiredRetrieval = fileUploadService.verifyDownloadToken(token, futureTimeAfter25Hours);
+    assert.equal(expiredRetrieval, null, 'Attachment download must be rejected after 24 hours');
+
+    // Expired attachment record in DB returns null
+    const originalAttachment = db.attachments.get(attachmentId);
+    originalAttachment.expires_at = new Date(Date.now() - 1000).toISOString();
+    assert.equal(fileUploadService.verifyDownloadToken(token), null, 'Expired attachment link returns null');
+
+    // 4. Archived attachment rejected
+    originalAttachment.expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    originalAttachment.is_archived = true;
+    assert.equal(fileUploadService.verifyDownloadToken(token), null, 'Archived attachment link returns null');
   });
 });
