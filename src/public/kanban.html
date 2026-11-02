@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban Board</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9; --surface: #ffffff; --column: #eef0f3; --text: #1c2128; --muted: #5b6470; --border: #d8dde3;
+    --track: #e9ecf0; --accent: #2460c8; --avatar: #2460c8; --error: #b3261e; --drop: #dbe7fb;
+    --todo: #6b7685; --progress: #2f6fde; --review: #b26a00; --done: #1f8a5b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b; --surface: #1d2126; --column: #181b1f; --text: #e8eaed; --muted: #a2abb5; --border: #363c44;
+      --track: #2c3137; --accent: #76a5f5; --avatar: #3d6fc4; --error: #f2857d; --drop: #26364f;
+      --todo: #9aa5b1; --progress: #76a5f5; --review: #e0a040; --done: #4cc38a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px 16px; }
+  h1 { margin: 0 0 24px; font-size: 1.6rem; }
+  h2 { margin: 0; font-size: 1rem; }
+  section.panel { max-width: 760px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; margin-bottom: 12px; font-weight: 600; }
+  input, select { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  button { padding: 8px 16px; font: inherit; font-weight: 600; color: #fff; background: #2460c8; border: 0; border-radius: 6px; cursor: pointer; }
+  [hidden] { display: none !important; }
+  #error { color: var(--error); margin: 12px 0 0; }
+  #notice { color: var(--muted); margin: 0 0 16px; }
+  .board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; overflow-x: auto; padding-bottom: 8px; }
+  .column { background: var(--column); border: 1px solid var(--border); border-top: 4px solid var(--stage); border-radius: 8px; padding: 12px; min-height: 240px; }
+  .column.over { background: var(--drop); }
+  .column-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .count { background: var(--track); border-radius: 12px; padding: 0 8px; font-size: .8rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+  .card[draggable="true"] { cursor: grab; }
+  .card.dragging { opacity: .5; }
+  .title { font-weight: 600; margin-bottom: 4px; overflow-wrap: anywhere; }
+  .meta { color: var(--muted); font-size: .85rem; margin-bottom: 8px; }
+  .progress { height: 6px; background: var(--track); border-radius: 3px; margin-bottom: 8px; overflow: hidden; }
+  .progress span { display: block; height: 100%; background: var(--accent); }
+  .card-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .card-foot select { margin: 0; width: auto; padding: 4px 6px; font-size: .85rem; }
+  .avatars { display: flex; gap: 4px; margin-left: auto; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--avatar); color: #fff; font-size: .7rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kanban Board</h1>
+
+  <section class="panel" id="login-section">
+    <h2>Sign in</h2>
+    <form id="login-form">
+      <label>Email <input id="email" type="email" autocomplete="username" required></label>
+      <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <section class="panel" id="workspace-section" hidden>
+    <label>Workspace <select id="workspace"></select></label>
+  </section>
+
+  <p id="notice" hidden></p>
+  <div class="board" id="board" hidden></div>
+
+  <p id="error" role="alert" hidden></p>
+</main>
+
+<script>
+  const COLUMNS = [
+    { id: 'To-Do', label: 'To-Do', color: 'var(--todo)' },
+    { id: 'In-Progress', label: 'In Progress', color: 'var(--progress)' },
+    { id: 'Review', label: 'In Review', color: 'var(--review)' },
+    { id: 'Done', label: 'Done', color: 'var(--done)' }
+  ];
+
+  let token = null;
+  let board = {};
+  let canMove = false;
+  let draggedId = null;
+  const roles = new Map(); // workspace_id -> role
+  const el = id => document.getElementById(id);
+
+  function showError(message) {
+    el('error').textContent = message;
+    el('error').hidden = !message;
+  }
+
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(path, { ...options, headers });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || payload.error || 'Request failed.');
+    return payload.data;
+  }
+
+  function findCard(taskId) {
+    for (const column of COLUMNS) {
+      const card = (board[column.id] || []).find(task => task.task_id === taskId);
+      if (card) return { card, from: column.id };
+    }
+    return null;
+  }
+
+  async function moveCard(taskId, targetColumn) {
+    const found = findCard(taskId);
+    if (!canMove || !found || found.from === targetColumn) return;
+
+    // Show the move at once, and put the board back if the server refuses it.
+    const snapshot = board;
+    board = {
+      ...board,
+      [found.from]: board[found.from].filter(task => task.task_id !== taskId),
+      [targetColumn]: [...(board[targetColumn] || []), { ...found.card, status: targetColumn }]
+    };
+    render();
+    showError('');
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}/move`, {
+        method: 'POST',
+        body: JSON.stringify({ targetColumn })
+      });
+    } catch (err) {
+      board = snapshot;
+      render();
+      showError(`Could not move the card: ${err.message}`);
+    }
+  }
+
+  function cardElement(task) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.taskId = task.task_id;
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = task.title;
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `Priority: ${task.priority}`;
+
+    const progress = document.createElement('div');
+    progress.className = 'progress';
+    const fill = document.createElement('span');
+    fill.style.width = `${Math.min(100, Math.max(0, Number(task.progress_percentage) || 0))}%`;
+    progress.append(fill);
+
+    const foot = document.createElement('div');
+    foot.className = 'card-foot';
+
+    const avatars = document.createElement('div');
+    avatars.className = 'avatars';
+    for (const person of task.assignee_avatars || []) {
+      const avatar = document.createElement('span');
+      avatar.className = 'avatar';
+      avatar.title = person.name;
+      avatar.textContent = person.initials;
+      avatars.append(avatar);
+    }
+
+    if (canMove) {
+      card.draggable = true;
+      card.addEventListener('dragstart', event => {
+        draggedId = task.task_id;
+        event.dataTransfer.setData('text/plain', task.task_id);
+        event.dataTransfer.effectAllowed = 'move';
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => {
+        draggedId = null;
+        card.classList.remove('dragging');
+      });
+
+      // A keyboard-friendly alternative to dragging.
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', `Move "${task.title}" to`);
+      for (const column of COLUMNS) {
+        const option = document.createElement('option');
+        option.value = column.id;
+        option.textContent = column.label;
+        option.selected = column.id === task.status;
+        select.append(option);
+      }
+      select.addEventListener('change', () => moveCard(task.task_id, select.value));
+      foot.append(select);
+    }
+
+    foot.append(avatars);
+    card.append(title, meta, progress, foot);
+    return card;
+  }
+
+  function render() {
+    el('board').replaceChildren(...COLUMNS.map(column => {
+      const tasks = board[column.id] || [];
+      const wrapper = document.createElement('section');
+      wrapper.className = 'column';
+      wrapper.dataset.column = column.id;
+      wrapper.style.setProperty('--stage', column.color);
+
+      const head = document.createElement('div');
+      head.className = 'column-head';
+      const name = document.createElement('h2');
+      name.textContent = column.label;
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = String(tasks.length);
+      head.append(name, count);
+      wrapper.append(head, ...tasks.map(cardElement));
+
+      if (canMove) {
+        wrapper.addEventListener('dragover', event => {
+          event.preventDefault();
+          wrapper.classList.add('over');
+        });
+        wrapper.addEventListener('dragleave', () => wrapper.classList.remove('over'));
+        wrapper.addEventListener('drop', event => {
+          event.preventDefault();
+          wrapper.classList.remove('over');
+          const taskId = draggedId || event.dataTransfer.getData('text/plain');
+          draggedId = null;
+          if (taskId) moveCard(taskId, column.id);
+        });
+      }
+      return wrapper;
+    }));
+  }
+
+  async function loadBoard() {
+    showError('');
+    const workspaceId = el('workspace').value;
+    canMove = roles.get(workspaceId) !== 'Viewer';
+    el('notice').textContent = 'You have view-only access, so cards cannot be moved.';
+    el('notice').hidden = canMove;
+    try {
+      board = await api(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/kanban`);
+      render();
+      el('board').hidden = false;
+    } catch (err) {
+      el('board').hidden = true;
+      showError(err.message);
+    }
+  }
+
+  el('workspace').addEventListener('change', loadBoard);
+
+  el('login-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    showError('');
+    try {
+      const auth = await api('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: el('email').value, password: el('password').value })
+      });
+      token = auth.token;
+      el('password').value = '';
+
+      const workspaces = await api('/api/v1/workspaces');
+      el('login-section').hidden = true;
+      if (workspaces.length === 0) {
+        showError('You are not a member of any workspace yet.');
+        return;
+      }
+      workspaces.forEach(workspace => roles.set(workspace.workspace_id, workspace.role));
+      el('workspace').replaceChildren(...workspaces.map(workspace => {
+        const option = document.createElement('option');
+        option.value = workspace.workspace_id;
+        option.textContent = workspace.title;
+        return option;
+      }));
+      el('workspace-section').hidden = false;
+      await loadBoard();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+</script>
+</body>
+</html>
