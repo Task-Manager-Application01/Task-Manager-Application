@@ -137,6 +137,85 @@ test('UT-TASK-01: Task Lifecycle & Core CRUD Operations', async (t) => {
     assert.notEqual(res.body.data.updated_at, initialUpdatedAt);
   });
 
+  await t.test('REQ-3.2: Restricts task edits to authors, assignees, and admins while rejecting other members and viewers', async () => {
+    // Setup roles in workspace
+    const adminUser = userId; // workspace creator is Admin
+    const authorUser = crypto.randomUUID();
+    const assigneeUser = crypto.randomUUID();
+    const otherMember = crypto.randomUUID();
+    const viewerUser = crypto.randomUUID();
+
+    db.addMembership({ workspace_id: workspaceId, user_id: adminUser, role: 'Admin' });
+    db.addMembership({ workspace_id: workspaceId, user_id: authorUser, role: 'Member' });
+    db.addMembership({ workspace_id: workspaceId, user_id: assigneeUser, role: 'Member' });
+    db.addMembership({ workspace_id: workspaceId, user_id: otherMember, role: 'Member' });
+    db.addMembership({ workspace_id: workspaceId, user_id: viewerUser, role: 'Viewer' });
+
+    const task = db.createTask({
+      workspace_id: workspaceId,
+      created_by: authorUser,
+      title: 'Restricted Task Edit Test',
+      priority: 'Low',
+      assignees: [assigneeUser]
+    });
+
+    // 1. Author can edit
+    const authorReq = {
+      params: { taskId: task.task_id },
+      user: { userId: authorUser },
+      body: { title: 'Author Updated Title' }
+    };
+    const authorRes = mockRes();
+    await taskController.updateTask(authorReq, authorRes);
+    assert.equal(authorRes.statusCode, 200);
+    assert.equal(authorRes.body.data.title, 'Author Updated Title');
+
+    // 2. Assignee can edit
+    const assigneeReq = {
+      params: { taskId: task.task_id },
+      user: { userId: assigneeUser },
+      body: { title: 'Assignee Updated Title' }
+    };
+    const assigneeRes = mockRes();
+    await taskController.updateTask(assigneeReq, assigneeRes);
+    assert.equal(assigneeRes.statusCode, 200);
+    assert.equal(assigneeRes.body.data.title, 'Assignee Updated Title');
+
+    // 3. Workspace Admin can edit
+    const adminReq = {
+      params: { taskId: task.task_id },
+      user: { userId: adminUser },
+      body: { title: 'Admin Updated Title' }
+    };
+    const adminRes = mockRes();
+    await taskController.updateTask(adminReq, adminRes);
+    assert.equal(adminRes.statusCode, 200);
+    assert.equal(adminRes.body.data.title, 'Admin Updated Title');
+
+    // 4. Other Member (neither author nor assignee nor admin) is rejected with 403
+    const otherReq = {
+      params: { taskId: task.task_id },
+      user: { userId: otherMember },
+      body: { title: 'Unauthorized Edit Title' }
+    };
+    const otherRes = mockRes();
+    await taskController.updateTask(otherReq, otherRes);
+    assert.equal(otherRes.statusCode, 403);
+    assert.equal(otherRes.body.error, 'Forbidden');
+    assert.ok(otherRes.body.message.includes('Only task authors, assignees, or workspace admins'));
+
+    // 5. Viewer is rejected with 403
+    const viewerReq = {
+      params: { taskId: task.task_id },
+      user: { userId: viewerUser },
+      body: { title: 'Viewer Edit Title' }
+    };
+    const viewerRes = mockRes();
+    await taskController.updateTask(viewerReq, viewerRes);
+    assert.equal(viewerRes.statusCode, 403);
+    assert.equal(viewerRes.body.error, 'Forbidden');
+  });
+
   await t.test('REQ-3.3: Soft-delete (archiving) task cascades to child subtasks atomically', async () => {
     const task = db.createTask({
       workspace_id: workspaceId,
