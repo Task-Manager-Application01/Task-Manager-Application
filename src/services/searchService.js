@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { db } = require('../models/Database');
 
 /**
@@ -6,6 +7,15 @@ const { db } = require('../models/Database');
  * Feature 6 — Multi-Criteria Search, Filtering & Tagging Engine
  * REQ-6.1, REQ-6.2, REQ-6.3 | ARC-QUERY | DSN-06
  */
+
+const TAG_NAME_MAX = 50;
+const TAG_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+function validationError(message) {
+  const err = new Error(message);
+  err.statusCode = 400;
+  return err;
+}
 
 const PRIORITY_ORDER = {
   High: 3,
@@ -111,15 +121,26 @@ class SearchService {
    * REQ-6.3: Create and manage colored tags
    */
   createTag({ workspaceId, name, color = '#3b82f6' }) {
-    const tagId = `tag_${Date.now()}`;
+    if (typeof name !== 'string' || !name.trim()) {
+      throw validationError('Tag name is required.');
+    }
+    if (name.trim().length > TAG_NAME_MAX) {
+      throw validationError(`Tag name cannot exceed ${TAG_NAME_MAX} characters.`);
+    }
+    if (typeof color !== 'string' || !TAG_COLOR_PATTERN.test(color)) {
+      throw validationError('Tag color must be a hex value like #3b82f6.');
+    }
+
+    const tagId = `tag_${crypto.randomUUID()}`;
     const tag = {
       tag_id: tagId,
       workspace_id: workspaceId,
       name: name.trim(),
-      color
+      color: color.toLowerCase()
     };
     db.tags.set(tagId, tag);
-    return tag;
+    db._persistIfEnabled();
+    return { ...tag };
   }
 
   listTags(workspaceId) {

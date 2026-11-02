@@ -228,6 +228,23 @@ function createServer() {
         return res.status(200).json({ success: true, ...results });
       }
 
+      // Colored tags (REQ-6.3)
+      const wsTagsMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/tags$/);
+      if (wsTagsMatch && method === 'GET') {
+        if (!requireWorkspaceAccess(req, res, wsTagsMatch[1])) return;
+        const tags = searchService.listTags(wsTagsMatch[1]);
+        return res.status(200).json({ success: true, count: tags.length, data: tags });
+      }
+      if (wsTagsMatch && method === 'POST') {
+        if (!requireWorkspaceAccess(req, res, wsTagsMatch[1], true)) return;
+        const tag = searchService.createTag({
+          workspaceId: wsTagsMatch[1],
+          name: req.body.name,
+          color: req.body.color
+        });
+        return res.status(201).json({ success: true, data: tag });
+      }
+
       // 6. Analytics & Reporting Routes (Feature 7)
       const analyticsKpiMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/analytics\/kpi$/);
       if (method === 'GET' && analyticsKpiMatch) {
