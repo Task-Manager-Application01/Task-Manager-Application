@@ -5,6 +5,7 @@
  */
 const { db } = require('../models/Database');
 const auditLogger = require('../services/auditLogger');
+const rbacService = require('../services/rbacService');
 const {
   sanitizeString,
   validateTaskCreation,
@@ -158,6 +159,22 @@ class TaskController {
         });
       }
 
+      // Restrict task edits to authors, assignees, and workspace admins (REQ-3.2)
+      const actorId = req.user ? req.user.userId : (req.body && (req.body.actorId || req.body.updated_by));
+      if (actorId) {
+        const isAuthor = existingTask.created_by === actorId;
+        const isAssignee = (existingTask.assignees || []).includes(actorId);
+        const isAdmin = rbacService.getUserRole(existingTask.workspace_id, actorId) === 'Admin';
+
+        if (!isAuthor && !isAssignee && !isAdmin) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden',
+            message: 'Only task authors, assignees, or workspace admins can edit this task.'
+          });
+        }
+      }
+
       const { isValid, errors } = validateTaskUpdate(req.body);
       if (!isValid) {
         return res.status(400).json({
@@ -183,13 +200,13 @@ class TaskController {
       }
 
       const previousStatus = existingTask.status;
-      const actorId = req.user ? req.user.userId : 'USER';
+      const notificationActorId = actorId || 'USER';
       const updatedTask = db.updateTask(taskId, updates);
 
       // REQ-8.1: Notify assignees when this update changes the task's status
       if (updatedTask.status !== previousStatus) {
         (updatedTask.assignees || []).forEach(assigneeId => {
-          if (assigneeId === actorId) return;
+          if (assigneeId === notificationActorId) return;
           db.createNotification({
             user_id: assigneeId,
             title: 'Task Status Updated',
@@ -203,7 +220,7 @@ class TaskController {
       // Audit Log Entry
       auditLogger.log({
         workspaceId: updatedTask.workspace_id,
-        actorId,
+        actorId: notificationActorId,
         action: 'TASK_UPDATED',
         targetEntity: 'TASK',
         targetId: taskId,
