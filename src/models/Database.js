@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -14,20 +16,28 @@ function deepFreeze(value) {
  */
 class Database {
   constructor() {
-    this.reset();
+    this.resetData();
+  }
+
+  resetData() {
+    this.users = new Map();
+    this.workspaces = new Map();
+    this.memberships = new Map();
+    this.tasks = new Map();
+    this.subtasks = new Map();
+    this.attachments = new Map();
+    this.tags = new Map();
+    this.notifications = new Map();
+    this.auditLogs = [];
+    this.passwordResets = new Map();
   }
 
   reset() {
-    this.users = new Map(); // userId -> user
-    this.workspaces = new Map(); // workspaceId -> workspace
-    this.memberships = new Map(); // membershipId -> membership
-    this.tasks = new Map(); // taskId -> task
-    this.subtasks = new Map(); // subtaskId -> subtask
-    this.attachments = new Map(); // attachmentId -> attachment
-    this.tags = new Map(); // tagId -> tag
-    this.notifications = new Map(); // notifId -> notification
-    this.auditLogs = []; // Array of immutable audit log entries
-    this.passwordResets = new Map(); // token -> { email, expires_at }
+    this.resetData();
+    this.autoPersist = false;
+    this.storageFilePath = null;
+    this.backupDirPath = null;
+    this.stopDailyBackups();
   }
 
   // --- Auth & User Store ---
@@ -40,7 +50,7 @@ class Database {
       full_name,
       created_at: new Date().toISOString()
     };
-    this.users.set(userId, user);
+    this.users.set(userId, user); this._persistIfEnabled();
     return { ...user };
   }
 
@@ -99,7 +109,7 @@ class Database {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    this.workspaces.set(workspaceId, workspace);
+    this.workspaces.set(workspaceId, workspace); this._persistIfEnabled();
 
     // Automatically assign owner as Admin
     this.addMembership({
@@ -181,7 +191,7 @@ class Database {
       role, // 'Admin', 'Member', 'Viewer'
       joined_at: new Date().toISOString()
     };
-    this.memberships.set(membershipId, membership);
+    this.memberships.set(membershipId, membership); this._persistIfEnabled();
     return { ...membership };
   }
 
@@ -238,7 +248,7 @@ class Database {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    this.tasks.set(taskId, task);
+    this.tasks.set(taskId, task); this._persistIfEnabled();
     return { ...task };
   }
 
@@ -269,7 +279,7 @@ class Database {
       ...updates,
       updated_at: new Date().toISOString()
     };
-    this.tasks.set(taskId, updatedTask);
+    this.tasks.set(taskId, updatedTask); this._persistIfEnabled();
     return { ...updatedTask };
   }
 
@@ -296,6 +306,7 @@ class Database {
         attachment.deleted_at = now;
       }
     }
+    this._persistIfEnabled();
     return true;
   }
 
@@ -308,7 +319,7 @@ class Database {
     for (const [attachmentId, attachment] of this.attachments.entries()) {
       if (attachment.task_id === taskId) this.attachments.delete(attachmentId);
     }
-    this.tasks.delete(taskId);
+    this.tasks.delete(taskId); this._persistIfEnabled();
     return true;
   }
 
@@ -330,7 +341,7 @@ class Database {
       updated_at: new Date().toISOString()
     };
 
-    this.subtasks.set(subtaskId, subtask);
+    this.subtasks.set(subtaskId, subtask); this._persistIfEnabled();
     this.recalculateTaskProgress(subtaskData.task_id);
     return { ...subtask };
   }
@@ -429,7 +440,7 @@ class Database {
       uploaded_at: uploadedAt,
       expires_at: expiresAt
     };
-    this.attachments.set(attachmentId, attachment);
+    this.attachments.set(attachmentId, attachment); this._persistIfEnabled();
     return { ...attachment };
   }
 
@@ -509,6 +520,113 @@ class Database {
         ...log,
         details: { ...log.details }
       }));
+  }
+
+  // --- Persistence & Backup Services (REQ-NFR-3, SRS 2.4) ---
+  serialize() {
+    return JSON.stringify({
+      version: 1,
+      saved_at: new Date().toISOString(),
+      users: Array.from(this.users.entries()),
+      workspaces: Array.from(this.workspaces.entries()),
+      memberships: Array.from(this.memberships.entries()),
+      tasks: Array.from(this.tasks.entries()),
+      subtasks: Array.from(this.subtasks.entries()),
+      attachments: Array.from(this.attachments.entries()),
+      tags: Array.from(this.tags.entries()),
+      notifications: Array.from(this.notifications.entries()),
+      auditLogs: this.auditLogs,
+      passwordResets: Array.from(this.passwordResets.entries())
+    }, null, 2);
+  }
+
+  deserialize(jsonString) {
+    const data = JSON.parse(jsonString);
+    this.resetData();
+    if (Array.isArray(data.users)) this.users = new Map(data.users);
+    if (Array.isArray(data.workspaces)) this.workspaces = new Map(data.workspaces);
+    if (Array.isArray(data.memberships)) this.memberships = new Map(data.memberships);
+    if (Array.isArray(data.tasks)) this.tasks = new Map(data.tasks);
+    if (Array.isArray(data.subtasks)) this.subtasks = new Map(data.subtasks);
+    if (Array.isArray(data.attachments)) this.attachments = new Map(data.attachments);
+    if (Array.isArray(data.tags)) this.tags = new Map(data.tags);
+    if (Array.isArray(data.notifications)) this.notifications = new Map(data.notifications);
+    if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
+    if (Array.isArray(data.passwordResets)) this.passwordResets = new Map(data.passwordResets);
+  }
+
+  save(customPath = this.storageFilePath) {
+    if (!customPath) return false;
+    const dir = path.dirname(customPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const tempPath = `${customPath}.${crypto.randomUUID()}.tmp`;
+    const payload = this.serialize();
+    fs.writeFileSync(tempPath, payload, 'utf8');
+    fs.renameSync(tempPath, customPath);
+    return true;
+  }
+
+  load(customPath = this.storageFilePath) {
+    if (!customPath || !fs.existsSync(customPath)) return false;
+    const content = fs.readFileSync(customPath, 'utf8');
+    this.deserialize(content);
+    return true;
+  }
+
+  enableAutoPersist(filePath) {
+    this.storageFilePath = filePath || path.join(__dirname, '../../data/database.json');
+    this.autoPersist = true;
+    if (fs.existsSync(this.storageFilePath)) {
+      this.load(this.storageFilePath);
+    }
+  }
+
+  disableAutoPersist() {
+    this.autoPersist = false;
+    this.storageFilePath = null;
+  }
+
+  _persistIfEnabled() {
+    if (this.autoPersist && this.storageFilePath) {
+      this.save(this.storageFilePath);
+    }
+  }
+
+  backup(targetDir = this.backupDirPath) {
+    const backupDir = targetDir || path.join(__dirname, '../../data/backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const dateStr = new Date().toISOString().split('T')[0];
+    const backupFile = path.join(backupDir, `backup-${dateStr}.json`);
+    const tempPath = `${backupFile}.${crypto.randomUUID()}.tmp`;
+    fs.writeFileSync(tempPath, this.serialize(), 'utf8');
+    fs.renameSync(tempPath, backupFile);
+    return backupFile;
+  }
+
+  startDailyBackups(intervalMs = 24 * 60 * 60 * 1000, targetDir) {
+    this.backupDirPath = targetDir || path.join(__dirname, '../../data/backups');
+    this.backup(this.backupDirPath);
+    if (!this._backupTimer) {
+      this._backupTimer = setInterval(() => {
+        try {
+          this.backup(this.backupDirPath);
+        } catch (err) {
+          console.error('[Database Backup Error]', err);
+        }
+      }, intervalMs);
+      if (this._backupTimer.unref) this._backupTimer.unref();
+    }
+  }
+
+  stopDailyBackups() {
+    if (this._backupTimer) {
+      clearInterval(this._backupTimer);
+      this._backupTimer = null;
+    }
   }
 }
 
