@@ -216,6 +216,102 @@ test('UT-TASK-01: Task Lifecycle & Core CRUD Operations', async (t) => {
     assert.equal(viewerRes.body.error, 'Forbidden');
   });
 
+  await t.test('Business Rule 1 / REQ-5.1: Enforces workspace membership when assigning through task routes (create & update)', async () => {
+    const validMember = crypto.randomUUID();
+    const nonMember = crypto.randomUUID();
+
+    db.addMembership({ workspace_id: workspaceId, user_id: validMember, role: 'Member' });
+
+    // 1. Create task rejects non-member assignee
+    const invalidCreateReq = {
+      body: {
+        workspace_id: workspaceId,
+        created_by: userId,
+        title: 'Task with Non-Member Assignee',
+        priority: 'Medium',
+        assignees: [nonMember]
+      }
+    };
+    const invalidCreateRes = mockRes();
+    await taskController.createTask(invalidCreateReq, invalidCreateRes);
+    assert.equal(invalidCreateRes.statusCode, 400);
+    assert.equal(invalidCreateRes.body.error, 'Validation Error');
+    assert.ok(invalidCreateRes.body.message.includes('Business Rule 1 Violation'));
+
+    // Create task rejects non-member assignee_id
+    const invalidCreateIdReq = {
+      body: {
+        workspace_id: workspaceId,
+        created_by: userId,
+        title: 'Task with Non-Member Assignee ID',
+        priority: 'Medium',
+        assignee_id: nonMember
+      }
+    };
+    const invalidCreateIdRes = mockRes();
+    await taskController.createTask(invalidCreateIdReq, invalidCreateIdRes);
+    assert.equal(invalidCreateIdRes.statusCode, 400);
+    assert.ok(invalidCreateIdRes.body.message.includes('Business Rule 1 Violation'));
+
+    // Create task succeeds with valid workspace member
+    const validCreateReq = {
+      body: {
+        workspace_id: workspaceId,
+        created_by: userId,
+        title: 'Task with Valid Assignee',
+        priority: 'Medium',
+        assignees: [validMember]
+      }
+    };
+    const validCreateRes = mockRes();
+    await taskController.createTask(validCreateReq, validCreateRes);
+    assert.equal(validCreateRes.statusCode, 201);
+    assert.deepEqual(validCreateRes.body.data.assignees, [validMember]);
+
+    const createdTaskId = validCreateRes.body.data.task_id;
+
+    // 2. Update task rejects non-member assignee with 400 and leaves task unchanged
+    const invalidUpdateReq = {
+      params: { taskId: createdTaskId },
+      user: { userId: validMember },
+      body: { assignees: [nonMember] }
+    };
+    const invalidUpdateRes = mockRes();
+    await taskController.updateTask(invalidUpdateReq, invalidUpdateRes);
+    assert.equal(invalidUpdateRes.statusCode, 400);
+    assert.equal(invalidUpdateRes.body.error, 'Validation Error');
+    assert.ok(invalidUpdateRes.body.message.includes('Business Rule 1 Violation'));
+
+    // Verify task is left unchanged
+    const unchangedTask = db.getTask(createdTaskId);
+    assert.deepEqual(unchangedTask.assignees, [validMember]);
+
+    // Update task rejects non-member assignee_id
+    const invalidUpdateIdReq = {
+      params: { taskId: createdTaskId },
+      user: { userId: validMember },
+      body: { assignee_id: nonMember }
+    };
+    const invalidUpdateIdRes = mockRes();
+    await taskController.updateTask(invalidUpdateIdReq, invalidUpdateIdRes);
+    assert.equal(invalidUpdateIdRes.statusCode, 400);
+    assert.deepEqual(db.getTask(createdTaskId).assignees, [validMember]);
+
+    // Update task succeeds with valid workspace member
+    const anotherMember = crypto.randomUUID();
+    db.addMembership({ workspace_id: workspaceId, user_id: anotherMember, role: 'Member' });
+
+    const validUpdateReq = {
+      params: { taskId: createdTaskId },
+      user: { userId: validMember },
+      body: { assignees: [anotherMember] }
+    };
+    const validUpdateRes = mockRes();
+    await taskController.updateTask(validUpdateReq, validUpdateRes);
+    assert.equal(validUpdateRes.statusCode, 200);
+    assert.deepEqual(db.getTask(createdTaskId).assignees, [anotherMember]);
+  });
+
   await t.test('REQ-3.3: Soft-delete (archiving) task cascades to child subtasks atomically', async () => {
     const task = db.createTask({
       workspace_id: workspaceId,

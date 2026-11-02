@@ -35,6 +35,21 @@ class TaskController {
         });
       }
 
+      const assignees = Array.isArray(req.body.assignees)
+        ? req.body.assignees
+        : (req.body.assignee_id ? [req.body.assignee_id] : []);
+
+      // Business Rule 1 / REQ-5.1: Enforce workspace membership for all assignees
+      for (const uid of assignees) {
+        if (!rbacService.isMember(req.body.workspace_id, uid)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Validation Error',
+            message: `Business Rule 1 Violation: Assignee '${uid}' is not a member of workspace '${req.body.workspace_id}'.`
+          });
+        }
+      }
+
       const taskData = {
         workspace_id: req.body.workspace_id,
         title: sanitizeString(req.body.title),
@@ -43,9 +58,7 @@ class TaskController {
         status: req.body.status || 'To-Do',
         due_date: req.body.due_date || null,
         created_by: req.body.created_by,
-        assignees: Array.isArray(req.body.assignees)
-          ? req.body.assignees
-          : (req.body.assignee_id ? [req.body.assignee_id] : []),
+        assignees,
         tags: Array.isArray(req.body.tags) ? req.body.tags.map(sanitizeString) : []
       };
 
@@ -195,6 +208,20 @@ class TaskController {
       } else if (req.body.assignee_id !== undefined) {
         updates.assignees = [req.body.assignee_id];
       }
+
+      // Business Rule 1 / REQ-5.1: Enforce workspace membership for all assignees
+      if (updates.assignees !== undefined) {
+        for (const uid of updates.assignees) {
+          if (!rbacService.isMember(existingTask.workspace_id, uid)) {
+            return res.status(400).json({
+              success: false,
+              error: 'Validation Error',
+              message: `Business Rule 1 Violation: Assignee '${uid}' is not a member of workspace '${existingTask.workspace_id}'.`
+            });
+          }
+        }
+      }
+
       if (req.body.tags !== undefined && Array.isArray(req.body.tags)) {
         updates.tags = req.body.tags.map(sanitizeString);
       }
