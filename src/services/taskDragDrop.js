@@ -1,5 +1,6 @@
 const { db } = require('../models/Database');
 const rbacService = require('./rbacService');
+const realtimeService = require('./realtimeService');
 
 /**
  * Kanban Drag & Drop Engine and Collaborator Assignment Service
@@ -117,7 +118,14 @@ class TaskDragDropService {
 
     const updatedTask = db.updateTask(taskId, { status: targetColumn });
 
-    // Broadcast / trigger audit log (REQ-5.3 & REQ-8.3)
+    // Broadcast to other viewers of this workspace and write the audit log (REQ-5.3 & REQ-8.3)
+    realtimeService.publish(task.workspace_id, 'task.moved', {
+      task_id: taskId,
+      from: previousStatus,
+      to: targetColumn,
+      actor_id: actorId,
+      task: updatedTask
+    });
     db.logAuditEvent({
       workspace_id: task.workspace_id,
       actor_id: actorId,
