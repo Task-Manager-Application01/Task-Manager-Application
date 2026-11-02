@@ -10,6 +10,7 @@ const notifController = require('./controllers/notifController');
 const fileUploadService = require('./services/fileUploadService');
 const taskDragDrop = require('./services/taskDragDrop');
 const searchService = require('./services/searchService');
+const realtimeService = require('./services/realtimeService');
 const analyticsService = require('./services/analyticsService');
 const reportExporter = require('./services/reportExporter');
 const auditLogger = require('./services/auditLogger');
@@ -197,6 +198,11 @@ function createServer() {
         if (!requireWorkspaceAccess(req, res, wsKanbanMatch[1])) return;
         const board = taskDragDrop.getKanbanBoard(wsKanbanMatch[1]);
         return res.status(200).json({ success: true, data: board });
+      }
+      const wsEventsMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/events$/);
+      if (method === 'GET' && wsEventsMatch) {
+        if (!requireWorkspaceAccess(req, res, wsEventsMatch[1])) return;
+        return realtimeService.subscribe(wsEventsMatch[1], req, res);
       }
       const taskMoveMatch = pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/move$/);
       if (method === 'POST' && taskMoveMatch) {
