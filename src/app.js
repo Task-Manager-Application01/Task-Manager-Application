@@ -126,6 +126,14 @@ function createServer() {
         return res.end(page);
       }
 
+      // Kanban board page (REQ-5.2). It holds no data; the page signs in to call the API.
+      if (method === 'GET' && pathname === '/kanban') {
+        const page = await fs.promises.readFile(path.join(__dirname, 'public', 'kanban.html'));
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('X-Frame-Options', 'DENY');
+        return res.end(page);
+      }
+
       // 2. Authentication Routes (Feature 1)
       if (method === 'POST' && pathname === '/api/v1/auth/register') {
         return await authController.register(req, res);
