@@ -120,13 +120,27 @@ class FileUploadService {
   /**
    * Validates download token and retrieves attachment
    */
-  verifyDownloadToken(downloadToken) {
+  verifyDownloadToken(downloadToken, now = new Date()) {
     if (!downloadToken || typeof downloadToken !== 'string') {
       return null;
     }
 
+    const currentTime = (now instanceof Date ? now : new Date(now)).getTime();
+
     for (const att of db.attachments.values()) {
-      if (att.download_token === downloadToken && !att.is_archived) {
+      if (att.download_token === downloadToken) {
+        if (att.is_archived) {
+          return null;
+        }
+
+        const expiryTime = att.expires_at
+          ? new Date(att.expires_at).getTime()
+          : (att.uploaded_at ? new Date(att.uploaded_at).getTime() + 24 * 60 * 60 * 1000 : null);
+
+        if (expiryTime && currentTime > expiryTime) {
+          return null;
+        }
+
         return att;
       }
     }
