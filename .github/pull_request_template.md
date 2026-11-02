@@ -7,7 +7,7 @@
 - Test cases covered: <!-- e.g. UT-TASK-01, ST-TASK-01 -->
 
 ## Checklist
-- [ ] I am the assigned owner of this feature set (Sprint-1 plan)
+- [ ] I am the assigned owner of this feature set (Sprint-2 plan)
 - [ ] `npm test` passes locally
 - [ ] Follows SRS / SAD / STP (or deviation is listed in `docs/SPRINT1_DEVIATIONS.md`)
 - [ ] Reviewer is a repo owner (not the PR author)

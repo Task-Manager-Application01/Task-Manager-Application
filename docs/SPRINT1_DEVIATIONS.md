@@ -9,7 +9,7 @@ Status legend: **Open** = still differs from the submitted documents · **Accept
 | # | Area | Submitted document says | What the code actually does | Status | Owner / Target |
 |---|------|------------------------|-----------------------------|--------|----------------|
 | 1 | Backend framework | SAD 3.6: Express.js REST gateway | Node core `http` module with a hand-written regex router in `src/app.js` | Accepted (zero-dependency; revisit if Express middleware is needed) | |
-| 2 | Database | SRS 2.4 / SAD 3.6 / STP: PostgreSQL 15+ (+ Redis 7) with transactional persistence | In-memory `Map`s in `src/models/Database.js`; **all data is lost on restart** | Open | |
+| 2 | Database | SRS 2.4 / SAD 3.6 / STP: PostgreSQL 15+ (+ Redis 7) with transactional persistence | Persistent file-backed JSON store with atomic snapshot persistence and automated daily backups (`data/database.json` & `data/backups/`). Full transactional cascading deletes and archiving preserved | Resolved, with file-based persistence Accepted | Dhadhal Rudra / Sprint 2 |
 | 3 | Frontend | SRS/SAD: React 18 SPA | Only one component (`src/components/KanbanBoard.jsx`); no React dependency, bundler, or page that renders it. The demo is API-only | Open | |
 | 4 | Password hashing | SRS REQ-1.2 / SAD / STP: salted **bcrypt**, work factor ≥ 10 | PBKDF2-SHA512, 10,000 iterations (`authMiddleware.js`). STP case "iteration cost factor ≥ 10" cannot be verified as written | Open | |
 | 5 | JWT | SRS: signed JWT | Hand-rolled HS256 with a **hard-coded fallback secret** if `JWT_SECRET` is unset | Open (must set `JWT_SECRET` in any real deployment) | |

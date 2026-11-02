@@ -28,5 +28,5 @@ jobs:
             await github.rest.issues.addLabels({
               ...context.repo,
               issue_number: context.payload.pull_request.number,
-              labels: ['sprint-1']
+              labels: ['sprint-2']
             }).catch(() => {});
