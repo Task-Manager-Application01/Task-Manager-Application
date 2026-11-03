@@ -72,7 +72,7 @@ class Database {
     const user = this.findUserByEmail(email);
     if (!user) return false;
     user.password_hash = newHash;
-    this.users.set(user.user_id, user);
+    this.users.set(user.user_id, user); this._persistIfEnabled();
     return true;
   }
 

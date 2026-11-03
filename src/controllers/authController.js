@@ -4,6 +4,7 @@ const { db } = require('../models/Database');
 const {
   hashPassword,
   verifyPassword,
+  needsRehash,
   generateJWT
 } = require('../middleware/authMiddleware');
 const { sanitizeString } = require('../middleware/validationMiddleware');
@@ -163,6 +164,11 @@ class AuthController {
           error: 'Unauthorized',
           message: 'Invalid email or password.'
         });
+      }
+
+      // Upgrade hashes written with the old, cheaper settings now that we hold the plaintext.
+      if (needsRehash(user.password_hash)) {
+        db.updateUserPassword(user.email, hashPassword(password));
       }
 
       const token = generateJWT({
