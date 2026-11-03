@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { db } = require('../src/models/Database');
 const authController = require('../src/controllers/authController');
 const workspaceController = require('../src/controllers/workspaceController');
+const emailService = require('../src/services/emailService');
 const { verifyJWT } = require('../src/middleware/authMiddleware');
 
 function mockRes() {
@@ -77,11 +78,18 @@ test('Feature Set A: Authentication & Workspace Governance (Chetana V Iyer - PES
     assert.equal(decoded.email, 'authtest@pes.edu');
 
     // Request Password Reset (REQ-1.3)
+    // The token travels by email, never in the response.
+    const sent = [];
+    emailService.setTransport(message => { sent.push(message); });
     const reqReset = { body: { email: 'authtest@pes.edu' } };
     const resReset = mockRes();
     await authController.requestPasswordReset(reqReset, resReset);
+    await new Promise(resolve => setImmediate(resolve));
+    emailService.setTransport();
     assert.equal(resReset.statusCode, 200);
-    const resetToken = resReset.body.resetToken;
+    assert.equal(resReset.body.resetToken, undefined);
+    assert.equal(sent.length, 1);
+    const resetToken = /\b[0-9a-f]{64}\b/.exec(sent[0].text)[0];
     assert.ok(resetToken);
 
     // Confirm Password Reset

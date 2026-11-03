@@ -14,8 +14,11 @@ function deepFreeze(value) {
  * Supports Multi-tenant Workspaces, RBAC, Tasks, Subtasks, Attachments, Notifications, and Audit Logs.
  * Fulfills all requirements across Team #4 (Chetana, Rudra, Gagan, Harsh).
  */
+const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000; // REQ-1.3
+
 class Database {
   constructor() {
+    this.PASSWORD_RESET_TTL_MS = PASSWORD_RESET_TTL_MS;
     this.resetData();
   }
 
@@ -77,16 +80,27 @@ class Database {
   }
 
   createPasswordResetToken(email) {
+    const lower = email.toLowerCase();
+    const now = Date.now();
+
+    // Drop expired tokens and any earlier token for this account: only the newest one works.
+    for (const [existing, entry] of this.passwordResets.entries()) {
+      if (entry.email === lower || Date.parse(entry.expires_at) <= now) {
+        this.passwordResets.delete(existing);
+      }
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
-    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry per REQ-1.3
-    this.passwordResets.set(token, { email: email.toLowerCase(), expires_at });
+    const expires_at = new Date(now + PASSWORD_RESET_TTL_MS).toISOString(); // 15 mins expiry per REQ-1.3
+    this.passwordResets.set(token, { email: lower, expires_at });
+    this._persistIfEnabled();
     return token;
   }
 
   verifyPasswordResetToken(token) {
     const entry = this.passwordResets.get(token);
     if (!entry) return null;
-    if (new Date() > new Date(entry.expires_at)) {
+    if (Date.now() >= Date.parse(entry.expires_at)) {
       this.passwordResets.delete(token);
       return null;
     }
@@ -95,6 +109,7 @@ class Database {
 
   consumePasswordResetToken(token) {
     this.passwordResets.delete(token);
+    this._persistIfEnabled();
   }
 
   // --- Workspace & RBAC Store ---

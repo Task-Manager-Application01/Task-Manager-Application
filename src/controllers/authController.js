@@ -8,11 +8,14 @@ const {
   generateJWT
 } = require('../middleware/authMiddleware');
 const { sanitizeString } = require('../middleware/validationMiddleware');
+const emailService = require('../services/emailService');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const PASSWORD_REGEX =
   /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+
+const PENDING_INVITATION_HASH = 'PENDING_INVITATION';
 
 const GENERIC_SERVER_ERROR = 'An unexpected error occurred.';
 
@@ -201,11 +204,10 @@ class AuthController {
   /**
    * REQ-1.3 — Request a password reset.
    *
-   * Creates a reset token for an existing account.
-   * The database controls the token's 15-minute expiry.
-   *
-   * The response for an unknown email does not reveal
-   * whether the account exists.
+   * Creates a reset token for an existing account and sends it to the account's email
+   * address. The token is never part of the HTTP response, so knowing someone's email
+   * address is not enough to reset their password. The response is identical whether or
+   * not the email is registered. The database controls the token's 15-minute expiry.
    */
   async requestPasswordReset(req, res) {
     try {
@@ -225,20 +227,28 @@ class AuthController {
 
       const user = db.findUserByEmail(email);
 
-      if (!user) {
-        return res.status(200).json({
-          success: true,
-          message:
-            'If the email is registered, a password reset link has been dispatched.'
+      // Accounts that exist only as an unaccepted invitation have no password to recover.
+      if (user && user.password_hash !== PENDING_INVITATION_HASH) {
+        const resetToken = db.createPasswordResetToken(email);
+        const minutes = Math.round(db.PASSWORD_RESET_TTL_MS / 60000);
+
+        // Sent in the background so response time does not reveal whether the account exists.
+        emailService.send({
+          to: email,
+          subject: 'Reset your Task Manager password',
+          text:
+            `We received a request to reset the password for ${email}.\n\n` +
+            `Your reset token is: ${resetToken}\n\n` +
+            `Send it with your new password to POST /api/v1/auth/password-reset/confirm ` +
+            `within ${minutes} minutes. The token works once.\n\n` +
+            'If you did not ask for this, you can ignore this message.'
         });
       }
 
-      const resetToken = db.createPasswordResetToken(email);
-
       return res.status(200).json({
         success: true,
-        message: 'Password reset token generated (valid for 15 minutes).',
-        resetToken
+        message:
+          'If the email is registered, a password reset message has been sent.'
       });
     } catch (err) {
       console.error('Password reset request error:', err.message);
