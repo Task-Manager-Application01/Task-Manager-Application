@@ -12,6 +12,7 @@ const HEARTBEAT_MS = 25000;
 class RealtimeService {
   constructor() {
     this.subscribers = new Map(); // workspaceId -> Set<res>
+    this.owners = new WeakMap(); // res -> userId of the subscriber
   }
 
   subscribe(workspaceId, req, res) {
@@ -26,6 +27,7 @@ class RealtimeService {
     if (!this.subscribers.has(workspaceId)) this.subscribers.set(workspaceId, new Set());
     const group = this.subscribers.get(workspaceId);
     group.add(res);
+    if (req.user) this.owners.set(res, req.user.userId);
 
     // Comment lines keep proxies from closing idle streams and surface dead sockets.
     const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), HEARTBEAT_MS);
@@ -56,6 +58,26 @@ class RealtimeService {
       }
     }
     return delivered;
+  }
+
+  /**
+   * Closes a user's open streams for a workspace, e.g. when they are removed from it.
+   * Authorization is checked when a stream opens, so it must also be cut when access ends.
+   */
+  disconnectUser(workspaceId, userId) {
+    const group = this.subscribers.get(workspaceId);
+    if (!group) return 0;
+    let closed = 0;
+    for (const res of [...group]) {
+      if (this.owners.get(res) !== userId) continue;
+      group.delete(res);
+      try { res.end(); } catch (err) { /* already closed */ }
+      closed++;
+    }
+    if (group.size === 0 && this.subscribers.get(workspaceId) === group) {
+      this.subscribers.delete(workspaceId);
+    }
+    return closed;
   }
 
   subscriberCount(workspaceId) {

@@ -179,6 +179,18 @@ function createServer() {
         if (!requireWorkspaceAccess(req, res, req.params.workspaceId)) return;
         return await workspaceController.listMembers(req, res);
       }
+      const wsMemberMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/members\/([^/]+)$/);
+      if (method === 'DELETE' && wsMemberMatch) {
+        req.params.workspaceId = wsMemberMatch[1];
+        req.params.userId = wsMemberMatch[2];
+        if (!db.getWorkspace(req.params.workspaceId)) {
+          return res.status(404).json({ success: false, error: 'Not Found', message: 'Workspace not found.' });
+        }
+        if (rbacService.getUserRole(req.params.workspaceId, req.user.userId) !== 'Admin') {
+          return res.status(403).json({ success: false, error: 'Forbidden', message: 'Only Workspace Admins can remove members.' });
+        }
+        return await workspaceController.removeMember(req, res);
+      }
       const wsSettingsMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/settings$/);
       if (method === 'PUT' && wsSettingsMatch) {
         req.params.workspaceId = wsSettingsMatch[1];

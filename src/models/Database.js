@@ -249,6 +249,7 @@ class Database {
     for (const [id, m] of this.memberships.entries()) {
       if (m.workspace_id === workspace_id && m.user_id === user_id) {
         this.memberships.delete(id);
+        this._persistIfEnabled();
         return true;
       }
     }
@@ -320,6 +321,27 @@ class Database {
     inv.accepted_at = new Date().toISOString();
     this._persistIfEnabled();
     return true;
+  }
+
+  countWorkspaceAdmins(workspace_id) {
+    let count = 0;
+    for (const m of this.memberships.values()) {
+      if (m.workspace_id === workspace_id && m.role === 'Admin') count++;
+    }
+    return count;
+  }
+
+  /** Takes a user off every task of a workspace (Business Rule 1: assignees must be members). */
+  unassignUserFromWorkspaceTasks(workspace_id, user_id) {
+    let changed = 0;
+    for (const task of this.tasks.values()) {
+      if (task.workspace_id !== workspace_id || !Array.isArray(task.assignees)) continue;
+      if (!task.assignees.includes(user_id)) continue;
+      task.assignees = task.assignees.filter(id => id !== user_id);
+      changed++;
+    }
+    if (changed > 0) this._persistIfEnabled();
+    return changed;
   }
 
   // --- Task CRUD Store ---

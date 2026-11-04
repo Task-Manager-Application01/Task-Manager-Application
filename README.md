@@ -10,7 +10,7 @@ attachments, Kanban moves, search, analytics/reports, notifications and audit lo
 ## Run it
 ```bash
 npm start          # http://localhost:3000  (health: /health)
-npm test           # 37 unit + system tests (Node >= 18, no dependencies to install)
+npm test           # unit + system tests (Node >= 18, no dependencies to install)
 npm run demo       # end-to-end walkthrough; run while the server is up
 ```
 Set `JWT_SECRET` in the environment for anything beyond a demo.

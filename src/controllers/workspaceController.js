@@ -5,6 +5,7 @@ const { sanitizeString } = require('../middleware/validationMiddleware');
 const { hashPassword, generateJWT } = require('../middleware/authMiddleware');
 const { EMAIL_REGEX, PASSWORD_REGEX, PASSWORD_RULE_MESSAGE } = require('../middleware/passwordPolicy');
 const emailService = require('../services/emailService');
+const realtimeService = require('../services/realtimeService');
 
 const PENDING_INVITATION_HASH = 'PENDING_INVITATION';
 const INVALID_INVITATION_MESSAGE = 'This invitation is invalid, has expired, or has already been used.';
@@ -374,6 +375,60 @@ class WorkspaceController {
       });
     } catch (err) {
       return res.status(500).json({ success: false, error: 'Internal Server Error', message: err.message });
+    }
+  }
+
+  /**
+   * REQ-2.3 (Member Revocation):
+   * Admin only. Removes a member, ends their access at once, and records the action.
+   * A workspace can never be left without an Admin.
+   */
+  async removeMember(req, res) {
+    try {
+      const { workspaceId, userId } = req.params;
+      const actorId = req.user ? req.user.userId : (req.body || {}).actor_id;
+
+      if (!actorId || !rbacService.canPerformDestructiveAction(workspaceId, actorId)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Forbidden',
+          message: 'Access denied: Only Workspace Admins can remove members.'
+        });
+      }
+
+      const target = db.getMembership(workspaceId, userId);
+      if (!target) {
+        return res.status(404).json({ success: false, error: 'Not Found', message: 'That user is not a member of this workspace.' });
+      }
+
+      if (target.role === 'Admin' && db.countWorkspaceAdmins(workspaceId) <= 1) {
+        return res.status(409).json({
+          success: false,
+          error: 'Conflict',
+          message: 'A workspace must keep at least one Admin. Make another member an Admin first.'
+        });
+      }
+
+      db.removeMembership(workspaceId, userId);
+      const unassigned = db.unassignUserFromWorkspaceTasks(workspaceId, userId);
+      realtimeService.disconnectUser(workspaceId, userId);
+
+      auditLogger.log({
+        workspaceId,
+        actorId,
+        action: 'MEMBER_REMOVED',
+        targetEntity: 'MEMBERSHIP',
+        targetId: target.membership_id,
+        details: { user_id: userId, role: target.role, tasks_unassigned: unassigned }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Member removed from the workspace.',
+        data: { workspace_id: workspaceId, user_id: userId, tasks_unassigned: unassigned }
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: 'Internal Server Error', message: 'Unable to remove the member.' });
     }
   }
 
