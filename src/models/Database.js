@@ -14,8 +14,13 @@ function deepFreeze(value) {
  * Supports Multi-tenant Workspaces, RBAC, Tasks, Subtasks, Attachments, Notifications, and Audit Logs.
  * Fulfills all requirements across Team #4 (Chetana, Rudra, Gagan, Harsh).
  */
+const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000; // REQ-1.3
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // REQ-2.2: invitation links expire after 7 days
+
 class Database {
   constructor() {
+    this.PASSWORD_RESET_TTL_MS = PASSWORD_RESET_TTL_MS;
+    this.INVITATION_TTL_MS = INVITATION_TTL_MS;
     this.resetData();
   }
 
@@ -30,6 +35,7 @@ class Database {
     this.notifications = new Map();
     this.auditLogs = [];
     this.passwordResets = new Map();
+    this.invitations = new Map();
   }
 
   reset() {
@@ -54,6 +60,15 @@ class Database {
     return { ...user };
   }
 
+  /** Fills in the name and password of an account that only existed as an invitation stub. */
+  activateUser(userId, { full_name, password_hash }) {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    const updated = { ...user, full_name, password_hash };
+    this.users.set(userId, updated); this._persistIfEnabled();
+    return { ...updated };
+  }
+
   findUserByEmail(email) {
     if (!email) return null;
     const lower = email.toLowerCase();
@@ -72,21 +87,32 @@ class Database {
     const user = this.findUserByEmail(email);
     if (!user) return false;
     user.password_hash = newHash;
-    this.users.set(user.user_id, user);
+    this.users.set(user.user_id, user); this._persistIfEnabled();
     return true;
   }
 
   createPasswordResetToken(email) {
+    const lower = email.toLowerCase();
+    const now = Date.now();
+
+    // Drop expired tokens and any earlier token for this account: only the newest one works.
+    for (const [existing, entry] of this.passwordResets.entries()) {
+      if (entry.email === lower || Date.parse(entry.expires_at) <= now) {
+        this.passwordResets.delete(existing);
+      }
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
-    const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry per REQ-1.3
-    this.passwordResets.set(token, { email: email.toLowerCase(), expires_at });
+    const expires_at = new Date(now + PASSWORD_RESET_TTL_MS).toISOString(); // 15 mins expiry per REQ-1.3
+    this.passwordResets.set(token, { email: lower, expires_at });
+    this._persistIfEnabled();
     return token;
   }
 
   verifyPasswordResetToken(token) {
     const entry = this.passwordResets.get(token);
     if (!entry) return null;
-    if (new Date() > new Date(entry.expires_at)) {
+    if (Date.now() >= Date.parse(entry.expires_at)) {
       this.passwordResets.delete(token);
       return null;
     }
@@ -95,6 +121,7 @@ class Database {
 
   consumePasswordResetToken(token) {
     this.passwordResets.delete(token);
+    this._persistIfEnabled();
   }
 
   // --- Workspace & RBAC Store ---
@@ -222,10 +249,99 @@ class Database {
     for (const [id, m] of this.memberships.entries()) {
       if (m.workspace_id === workspace_id && m.user_id === user_id) {
         this.memberships.delete(id);
+        this._persistIfEnabled();
         return true;
       }
     }
     return false;
+  }
+
+  // --- Workspace Invitations (REQ-2.2) ---
+  // Only a SHA-256 hash of each invitation token is stored; the token itself exists only in the email.
+  _hashInvitationToken(token) {
+    return crypto.createHash('sha256').update(String(token)).digest('hex');
+  }
+
+  /**
+   * Creates a pending invitation and returns it together with the one-time token.
+   * An earlier pending invitation for the same workspace and email is revoked.
+   */
+  createInvitation({ workspace_id, email, role, invited_by }) {
+    const lower = email.toLowerCase();
+    const now = new Date();
+
+    for (const inv of this.invitations.values()) {
+      if (inv.workspace_id === workspace_id && inv.email === lower && inv.status === 'Pending') {
+        inv.status = 'Revoked';
+      }
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const invitation = {
+      invitation_id: crypto.randomUUID(),
+      workspace_id,
+      email: lower,
+      role,
+      invited_by,
+      token_hash: this._hashInvitationToken(token),
+      status: 'Pending', // 'Pending', 'Accepted', 'Revoked'
+      created_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + INVITATION_TTL_MS).toISOString(),
+      accepted_at: null
+    };
+    this.invitations.set(invitation.invitation_id, invitation); this._persistIfEnabled();
+    return { invitation: this._publicInvitation(invitation), token };
+  }
+
+  _publicInvitation(invitation) {
+    const { token_hash, ...rest } = invitation; // eslint-disable-line no-unused-vars
+    return { ...rest };
+  }
+
+  /** Returns the invitation for a token whatever its state, or null if no invitation matches. */
+  findInvitationByToken(token) {
+    if (typeof token !== 'string' || token.length === 0) return null;
+    const hash = this._hashInvitationToken(token);
+    for (const inv of this.invitations.values()) {
+      if (inv.token_hash === hash) return this._publicInvitation(inv);
+    }
+    return null;
+  }
+
+  isInvitationUsable(invitation) {
+    return Boolean(invitation) &&
+      invitation.status === 'Pending' &&
+      Date.now() < Date.parse(invitation.expires_at);
+  }
+
+  markInvitationAccepted(invitationId) {
+    const inv = this.invitations.get(invitationId);
+    if (!inv || inv.status !== 'Pending') return false;
+    inv.status = 'Accepted';
+    inv.accepted_at = new Date().toISOString();
+    this._persistIfEnabled();
+    return true;
+  }
+
+  countWorkspaceAdmins(workspace_id) {
+    let count = 0;
+    for (const m of this.memberships.values()) {
+      if (m.workspace_id === workspace_id && m.role === 'Admin') count++;
+    }
+    return count;
+  }
+
+  /** Takes a user off every task of a workspace (Business Rule 1: assignees must be members). */
+  unassignUserFromWorkspaceTasks(workspace_id, user_id) {
+    let changed = 0;
+    for (const task of this.tasks.values()) {
+      if (task.workspace_id !== workspace_id || !Array.isArray(task.assignees)) continue;
+      if (!task.assignees.includes(user_id)) continue;
+      task.assignees = task.assignees.filter(id => id !== user_id);
+      changed++;
+    }
+    if (changed > 0) this._persistIfEnabled();
+    return changed;
   }
 
   // --- Task CRUD Store ---
@@ -536,7 +652,8 @@ class Database {
       tags: Array.from(this.tags.entries()),
       notifications: Array.from(this.notifications.entries()),
       auditLogs: this.auditLogs,
-      passwordResets: Array.from(this.passwordResets.entries())
+      passwordResets: Array.from(this.passwordResets.entries()),
+      invitations: Array.from(this.invitations.entries())
     }, null, 2);
   }
 
@@ -553,6 +670,7 @@ class Database {
     if (Array.isArray(data.notifications)) this.notifications = new Map(data.notifications);
     if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
     if (Array.isArray(data.passwordResets)) this.passwordResets = new Map(data.passwordResets);
+    if (Array.isArray(data.invitations)) this.invitations = new Map(data.invitations);
   }
 
   save(customPath = this.storageFilePath) {

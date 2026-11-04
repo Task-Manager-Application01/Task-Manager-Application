@@ -86,22 +86,73 @@ function verifyJWT(token) {
 }
 
 /**
- * REQ-NFR-4 (Credential Protection):
- * Salted hashing with high-cost iterations (work factor >= 10).
+ * REQ-NFR-4 / REQ-1.2 (Credential Protection):
+ * Passwords are salted and hashed with PBKDF2-HMAC-SHA512 from Node's built-in crypto module.
+ * The SRS names bcrypt (work factor >= 10); the team accepted PBKDF2 instead to stay
+ * dependency-free (see docs/SPRINT1_DEVIATIONS.md, row 4). The iteration count follows the
+ * OWASP recommendation for PBKDF2-HMAC-SHA512, which is far above bcrypt's 2^10 rounds in
+ * raw hashing work.
+ *
+ * Stored format: pbkdf2-sha512$<iterations>$<salt hex>$<hash hex>
+ * Hashes written by earlier versions ("<salt hex>:<hash hex>", 10,000 iterations) still
+ * verify, and needsRehash() reports them so login can upgrade them.
  */
+const PBKDF2_PREFIX = 'pbkdf2-sha512';
+const PBKDF2_ITERATIONS = 210000;
+const PBKDF2_KEY_LENGTH = 64;
+const PBKDF2_DIGEST = 'sha512';
+const LEGACY_PBKDF2_ITERATIONS = 10000;
+const MAX_ACCEPTED_ITERATIONS = 5000000;
+
+function derivePasswordHash(password, salt, iterations) {
+  return crypto.pbkdf2Sync(password, salt, iterations, PBKDF2_KEY_LENGTH, PBKDF2_DIGEST).toString('hex');
+}
+
+function parseStoredHash(stored) {
+  if (typeof stored !== 'string') return null;
+
+  if (stored.startsWith(`${PBKDF2_PREFIX}$`)) {
+    const [, iterationText, salt, hash] = stored.split('$');
+    const iterations = Number(iterationText);
+    if (!salt || !hash || !Number.isInteger(iterations) || iterations < 1 || iterations > MAX_ACCEPTED_ITERATIONS) {
+      return null;
+    }
+    return { iterations, salt, hash, legacy: false };
+  }
+
+  // Legacy format: "<salt>:<hash>" with a fixed 10,000 iterations.
+  const parts = stored.split(':');
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    return { iterations: LEGACY_PBKDF2_ITERATIONS, salt: parts[0], hash: parts[1], legacy: true };
+  }
+  return null;
+}
+
 function hashPassword(password) {
+  if (typeof password !== 'string' || password.length === 0) {
+    throw new TypeError('password must be a non-empty string.');
+  }
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
+  const hash = derivePasswordHash(password, salt, PBKDF2_ITERATIONS);
+  return `${PBKDF2_PREFIX}$${PBKDF2_ITERATIONS}$${salt}$${hash}`;
 }
 
 function verifyPassword(password, storedPasswordHash) {
-  if (!storedPasswordHash || !storedPasswordHash.includes(':')) return false;
-  const [salt, originalHash] = storedPasswordHash.split(':');
-  const testHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-  const actual = Buffer.from(testHash);
-  const expected = Buffer.from(originalHash);
+  if (typeof password !== 'string') return false;
+  const parsed = parseStoredHash(storedPasswordHash);
+  if (!parsed) return false;
+
+  const actual = Buffer.from(derivePasswordHash(password, parsed.salt, parsed.iterations));
+  const expected = Buffer.from(parsed.hash);
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+}
+
+/**
+ * True when a stored hash is in the legacy format or uses fewer iterations than today's setting.
+ */
+function needsRehash(storedPasswordHash) {
+  const parsed = parseStoredHash(storedPasswordHash);
+  return Boolean(parsed) && (parsed.legacy || parsed.iterations < PBKDF2_ITERATIONS);
 }
 
 /**
@@ -138,5 +189,7 @@ module.exports = {
   verifyJWT,
   hashPassword,
   verifyPassword,
+  needsRehash,
+  PBKDF2_ITERATIONS,
   authenticateToken
 };
