@@ -150,6 +150,12 @@ function createServer() {
       }
 
       const isSignedDownload = method === 'GET' && /^\/api\/v1\/attachments\/download\/[^/]+$/.test(pathname);
+      // The invitation token is the credential here: invitees may not have an account yet.
+      // If a valid Bearer token is sent, req.user is set so existing accounts can be matched.
+      if (method === 'POST' && pathname === '/api/v1/invitations/accept') {
+        return await workspaceController.acceptInvitation(req, res);
+      }
+
       if (pathname.startsWith('/api/v1/') && !isSignedDownload && !requireAuthentication(req, res)) {
         return;
       }

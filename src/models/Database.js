@@ -15,10 +15,12 @@ function deepFreeze(value) {
  * Fulfills all requirements across Team #4 (Chetana, Rudra, Gagan, Harsh).
  */
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000; // REQ-1.3
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // REQ-2.2: invitation links expire after 7 days
 
 class Database {
   constructor() {
     this.PASSWORD_RESET_TTL_MS = PASSWORD_RESET_TTL_MS;
+    this.INVITATION_TTL_MS = INVITATION_TTL_MS;
     this.resetData();
   }
 
@@ -33,6 +35,7 @@ class Database {
     this.notifications = new Map();
     this.auditLogs = [];
     this.passwordResets = new Map();
+    this.invitations = new Map();
   }
 
   reset() {
@@ -55,6 +58,15 @@ class Database {
     };
     this.users.set(userId, user); this._persistIfEnabled();
     return { ...user };
+  }
+
+  /** Fills in the name and password of an account that only existed as an invitation stub. */
+  activateUser(userId, { full_name, password_hash }) {
+    const user = this.users.get(userId);
+    if (!user) return null;
+    const updated = { ...user, full_name, password_hash };
+    this.users.set(userId, updated); this._persistIfEnabled();
+    return { ...updated };
   }
 
   findUserByEmail(email) {
@@ -241,6 +253,73 @@ class Database {
       }
     }
     return false;
+  }
+
+  // --- Workspace Invitations (REQ-2.2) ---
+  // Only a SHA-256 hash of each invitation token is stored; the token itself exists only in the email.
+  _hashInvitationToken(token) {
+    return crypto.createHash('sha256').update(String(token)).digest('hex');
+  }
+
+  /**
+   * Creates a pending invitation and returns it together with the one-time token.
+   * An earlier pending invitation for the same workspace and email is revoked.
+   */
+  createInvitation({ workspace_id, email, role, invited_by }) {
+    const lower = email.toLowerCase();
+    const now = new Date();
+
+    for (const inv of this.invitations.values()) {
+      if (inv.workspace_id === workspace_id && inv.email === lower && inv.status === 'Pending') {
+        inv.status = 'Revoked';
+      }
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const invitation = {
+      invitation_id: crypto.randomUUID(),
+      workspace_id,
+      email: lower,
+      role,
+      invited_by,
+      token_hash: this._hashInvitationToken(token),
+      status: 'Pending', // 'Pending', 'Accepted', 'Revoked'
+      created_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + INVITATION_TTL_MS).toISOString(),
+      accepted_at: null
+    };
+    this.invitations.set(invitation.invitation_id, invitation); this._persistIfEnabled();
+    return { invitation: this._publicInvitation(invitation), token };
+  }
+
+  _publicInvitation(invitation) {
+    const { token_hash, ...rest } = invitation; // eslint-disable-line no-unused-vars
+    return { ...rest };
+  }
+
+  /** Returns the invitation for a token whatever its state, or null if no invitation matches. */
+  findInvitationByToken(token) {
+    if (typeof token !== 'string' || token.length === 0) return null;
+    const hash = this._hashInvitationToken(token);
+    for (const inv of this.invitations.values()) {
+      if (inv.token_hash === hash) return this._publicInvitation(inv);
+    }
+    return null;
+  }
+
+  isInvitationUsable(invitation) {
+    return Boolean(invitation) &&
+      invitation.status === 'Pending' &&
+      Date.now() < Date.parse(invitation.expires_at);
+  }
+
+  markInvitationAccepted(invitationId) {
+    const inv = this.invitations.get(invitationId);
+    if (!inv || inv.status !== 'Pending') return false;
+    inv.status = 'Accepted';
+    inv.accepted_at = new Date().toISOString();
+    this._persistIfEnabled();
+    return true;
   }
 
   // --- Task CRUD Store ---
@@ -551,7 +630,8 @@ class Database {
       tags: Array.from(this.tags.entries()),
       notifications: Array.from(this.notifications.entries()),
       auditLogs: this.auditLogs,
-      passwordResets: Array.from(this.passwordResets.entries())
+      passwordResets: Array.from(this.passwordResets.entries()),
+      invitations: Array.from(this.invitations.entries())
     }, null, 2);
   }
 
@@ -568,6 +648,7 @@ class Database {
     if (Array.isArray(data.notifications)) this.notifications = new Map(data.notifications);
     if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
     if (Array.isArray(data.passwordResets)) this.passwordResets = new Map(data.passwordResets);
+    if (Array.isArray(data.invitations)) this.invitations = new Map(data.invitations);
   }
 
   save(customPath = this.storageFilePath) {

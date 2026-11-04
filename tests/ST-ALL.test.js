@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const http = require('http');
 const { createServer } = require('../src/app');
 const { db } = require('../src/models/Database');
+const emailService = require('../src/services/emailService');
 
 function request(server, options, body = null) {
   return new Promise((resolve, reject) => {
@@ -112,7 +113,10 @@ test(
         const workspaceId = wsRes.data.data.workspace_id;
         assert.ok(workspaceId, 'Workspace creation should return a workspace ID');
 
-        // 3. Invite Rudra as a workspace member.
+        // 3. Invite Rudra by email; he joins only after accepting the invitation.
+        const sentEmails = [];
+        emailService.setTransport(message => { sentEmails.push(message); });
+
         const inviteRes = await request(server, {
           method: 'POST',
           path: `/api/v1/workspaces/${workspaceId}/invite`,
@@ -121,11 +125,26 @@ test(
           email: 'rudra@pes.edu',
           role: 'Member'
         });
+        await new Promise(resolve => setImmediate(resolve));
+        emailService.setTransport();
 
-        assert.equal(inviteRes.statusCode, 200, JSON.stringify(inviteRes.data));
+        assert.equal(inviteRes.statusCode, 201, JSON.stringify(inviteRes.data));
+        assert.equal(sentEmails.length, 1);
+        const inviteToken = /\b[0-9a-f]{64}\b/.exec(sentEmails[0].text)[0];
 
-        const rudraId = inviteRes.data.data.user_id;
-        assert.ok(rudraId, 'Invitation should return the member user ID');
+        const acceptRes = await request(server, {
+          method: 'POST',
+          path: '/api/v1/invitations/accept'
+        }, {
+          token: inviteToken,
+          full_name: 'Rudra Dhadhal',
+          password: 'RudraPassword#2026'
+        });
+
+        assert.equal(acceptRes.statusCode, 200, JSON.stringify(acceptRes.data));
+
+        const rudraId = acceptRes.data.data.user_id;
+        assert.ok(rudraId, 'Accepting should return the member user ID');
 
         // 4. Create a task assigned to Rudra.
         const taskRes = await request(server, {

@@ -10,10 +10,11 @@ const {
 const { sanitizeString } = require('../middleware/validationMiddleware');
 const emailService = require('../services/emailService');
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const PASSWORD_REGEX =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+const {
+  EMAIL_REGEX,
+  PASSWORD_REGEX,
+  PASSWORD_RULE_MESSAGE
+} = require('../middleware/passwordPolicy');
 
 const PENDING_INVITATION_HASH = 'PENDING_INVITATION';
 
@@ -66,9 +67,7 @@ class AuthController {
         typeof password !== 'string' ||
         !PASSWORD_REGEX.test(password)
       ) {
-        errors.push(
-          'Password must be at least 8 characters long and contain at least 1 uppercase letter, 1 digit, and 1 special character.'
-        );
+        errors.push(PASSWORD_RULE_MESSAGE);
       }
 
       if (errors.length > 0) {

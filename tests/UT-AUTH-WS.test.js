@@ -141,14 +141,29 @@ test('Feature Set A: Authentication & Workspace Governance (Chetana V Iyer - PES
       owner_id: admin.user_id
     });
 
-    // Admin invites member with role 'Member'
+    // Admin invites member with role 'Member': only a pending invitation exists, no access yet
     const reqInvite = {
       params: { workspaceId: ws.workspace_id },
       body: { email: 'member@pes.edu', role: 'Member', actor_id: admin.user_id }
     };
     const resInvite = mockRes();
+    const sent = [];
+    emailService.setTransport(message => { sent.push(message); });
     await workspaceController.inviteMember(reqInvite, resInvite);
-    assert.equal(resInvite.statusCode, 200);
+    await new Promise(resolve => setImmediate(resolve));
+    emailService.setTransport();
+    assert.equal(resInvite.statusCode, 201);
+    assert.equal(db.getMembership(ws.workspace_id, member.user_id), null);
+
+    // The invitee accepts (signed in as the existing account) and receives the Member role
+    const inviteToken = /\b[0-9a-f]{64}\b/.exec(sent[0].text)[0];
+    const resAccept = mockRes();
+    await workspaceController.acceptInvitation(
+      { body: { token: inviteToken }, user: { userId: member.user_id } },
+      resAccept
+    );
+    assert.equal(resAccept.statusCode, 200);
+    assert.equal(db.getMembership(ws.workspace_id, member.user_id).role, 'Member');
 
     // Member attempts destructive settings update -> Should be rejected (REQ-2.3)
     const reqMemberUpdate = {
