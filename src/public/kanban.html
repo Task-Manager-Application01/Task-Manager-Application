@@ -131,12 +131,23 @@
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(path, { ...options, headers });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.message || payload.error || 'Request failed.');
+    if (!response.ok) {
+      const details = Array.isArray(payload.details) ? payload.details : [];
+      const reasons = [payload.message, ...details].filter(Boolean);
+      throw new Error(reasons.join(' ') || payload.error || 'Request failed.');
+    }
     return payload.data;
   }
 
   function allTasks() {
     return COLUMNS.flatMap(column => board[column.id] || []);
+  }
+
+  function localDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   function resetTaskForm() {
@@ -145,6 +156,7 @@
     el('task-form-heading').textContent = 'Add task';
     el('task-status').value = 'To-Do';
     el('task-priority').value = 'Medium';
+    el('task-due-date').min = localDateString();
     el('cancel-task').hidden = true;
   }
 
@@ -157,6 +169,7 @@
     el('task-priority').value = task.priority;
     el('task-status').value = task.status;
     el('task-due-date').value = task.due_date || '';
+    el('task-due-date').removeAttribute('min');
     el('task-form-heading').textContent = 'Edit task';
     el('cancel-task').hidden = false;
     el('task-title').focus();

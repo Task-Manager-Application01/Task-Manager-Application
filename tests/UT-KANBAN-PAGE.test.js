@@ -55,6 +55,8 @@ test('REQ-5.2: Kanban board page', async (t) => {
     assert.ok(page.includes("method: 'PUT'"), 'edit task uses the API');
     assert.ok(page.includes('/archive'), 'archive action uses the API');
     assert.ok(page.includes("method: 'DELETE'"), 'delete action uses the API');
+    assert.ok(page.includes("el('task-due-date').min = localDateString()"), 'new tasks reject past due dates in the form');
+    assert.ok(page.includes('Array.isArray(payload.details)'), 'validation details are shown to the user');
     assert.ok(page.includes('board = snapshot'), 'a failed move is reverted');
     assert.ok(!page.includes('innerHTML'), 'card text is never parsed as HTML');
   });
