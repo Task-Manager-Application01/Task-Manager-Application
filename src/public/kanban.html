@@ -44,6 +44,11 @@
   .progress span { display: block; height: 100%; background: var(--accent); }
   .card-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .card-foot select { margin: 0; width: auto; padding: 4px 6px; font-size: .85rem; }
+  .card-actions { display: flex; gap: 6px; }
+  .card-actions button { padding: 4px 8px; font-size: .8rem; }
+  .button-row { display: flex; gap: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid label:first-child, .form-grid label:nth-child(2) { grid-column: 1 / -1; }
   .avatars { display: flex; gap: 4px; margin-left: auto; }
   .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--avatar); color: #fff; font-size: .7rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
 </style>
@@ -65,6 +70,35 @@
     <label>Workspace <select id="workspace"></select></label>
   </section>
 
+  <section class="panel" id="task-section" hidden>
+    <h2 id="task-form-heading">Add task</h2>
+    <form id="task-form" class="form-grid">
+      <input id="task-id" type="hidden">
+      <label>Title <input id="task-title" maxlength="150" required></label>
+      <label>Description <input id="task-description" maxlength="2000"></label>
+      <label>Priority
+        <select id="task-priority" required>
+          <option value="Low">Low</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="High">High</option>
+        </select>
+      </label>
+      <label>Status
+        <select id="task-status">
+          <option value="To-Do">To-Do</option>
+          <option value="In-Progress">In Progress</option>
+          <option value="Review">In Review</option>
+          <option value="Done">Done</option>
+        </select>
+      </label>
+      <label>Due date <input id="task-due-date" type="date"></label>
+      <div class="button-row">
+        <button type="submit">Save task</button>
+        <button type="button" id="cancel-task" hidden>Cancel</button>
+      </div>
+    </form>
+  </section>
+
   <p id="notice" hidden></p>
   <div class="board" id="board" hidden></div>
 
@@ -83,6 +117,7 @@
   let board = {};
   let canMove = false;
   let draggedId = null;
+  let currentWorkspaceId = null;
   const roles = new Map(); // workspace_id -> role
   const el = id => document.getElementById(id);
 
@@ -98,6 +133,56 @@
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.message || payload.error || 'Request failed.');
     return payload.data;
+  }
+
+  function allTasks() {
+    return COLUMNS.flatMap(column => board[column.id] || []);
+  }
+
+  function resetTaskForm() {
+    el('task-form').reset();
+    el('task-id').value = '';
+    el('task-form-heading').textContent = 'Add task';
+    el('task-status').value = 'To-Do';
+    el('task-priority').value = 'Medium';
+    el('cancel-task').hidden = true;
+  }
+
+  function editTask(taskId) {
+    const task = allTasks().find(item => item.task_id === taskId);
+    if (!task) return;
+    el('task-id').value = task.task_id;
+    el('task-title').value = task.title;
+    el('task-description').value = task.description || '';
+    el('task-priority').value = task.priority;
+    el('task-status').value = task.status;
+    el('task-due-date').value = task.due_date || '';
+    el('task-form-heading').textContent = 'Edit task';
+    el('cancel-task').hidden = false;
+    el('task-title').focus();
+  }
+
+  async function archiveTask(taskId) {
+    if (!window.confirm('Archive this task?')) return;
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}/archive`, { method: 'POST' });
+      await loadBoard();
+    } catch (err) {
+      showError(`Could not archive the task: ${err.message}`);
+    }
+  }
+
+  async function deleteTask(taskId) {
+    if (!window.confirm('Permanently delete this task?')) return;
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirm: true })
+      });
+      await loadBoard();
+    } catch (err) {
+      showError(`Could not delete the task: ${err.message}`);
+    }
   }
 
   function findCard(taskId) {
@@ -190,6 +275,23 @@
       }
       select.addEventListener('change', () => moveCard(task.task_id, select.value));
       foot.append(select);
+
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => editTask(task.task_id));
+      const archive = document.createElement('button');
+      archive.type = 'button';
+      archive.textContent = 'Archive';
+      archive.addEventListener('click', () => archiveTask(task.task_id));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Delete';
+      remove.addEventListener('click', () => deleteTask(task.task_id));
+      actions.append(edit, archive, remove);
+      foot.append(actions);
     }
 
     foot.append(avatars);
@@ -236,7 +338,9 @@
   async function loadBoard() {
     showError('');
     const workspaceId = el('workspace').value;
+    currentWorkspaceId = workspaceId;
     canMove = roles.get(workspaceId) !== 'Viewer';
+    el('task-section').hidden = !canMove;
     el('notice').textContent = 'You have view-only access, so cards cannot be moved.';
     el('notice').hidden = canMove;
     try {
@@ -250,6 +354,37 @@
   }
 
   el('workspace').addEventListener('change', loadBoard);
+  el('cancel-task').addEventListener('click', resetTaskForm);
+
+  el('task-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    showError('');
+    const taskId = el('task-id').value;
+    const payload = {
+      title: el('task-title').value,
+      description: el('task-description').value,
+      priority: el('task-priority').value,
+      status: el('task-status').value,
+      due_date: el('task-due-date').value || null
+    };
+    try {
+      if (taskId) {
+        await api(`/api/v1/tasks/${encodeURIComponent(taskId)}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await api('/api/v1/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ ...payload, workspace_id: currentWorkspaceId })
+        });
+      }
+      resetTaskForm();
+      await loadBoard();
+    } catch (err) {
+      showError(`Could not save the task: ${err.message}`);
+    }
+  });
 
   el('login-form').addEventListener('submit', async event => {
     event.preventDefault();
@@ -276,6 +411,7 @@
         return option;
       }));
       el('workspace-section').hidden = false;
+      resetTaskForm();
       await loadBoard();
     } catch (err) {
       showError(err.message);

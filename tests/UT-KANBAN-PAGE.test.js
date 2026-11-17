@@ -50,6 +50,11 @@ test('REQ-5.2: Kanban board page', async (t) => {
     assert.ok(!/fetch\(/.test(page.replace(/const response = await fetch\(path/, '')), 'all requests go through api()');
     assert.ok(!page.includes('actorId'));
     assert.ok(page.includes('assignee_avatars'));
+    assert.ok(page.includes('id="task-form"'), 'task form is available');
+    assert.ok(page.includes("api('/api/v1/tasks'"), 'create task uses the API');
+    assert.ok(page.includes("method: 'PUT'"), 'edit task uses the API');
+    assert.ok(page.includes('/archive'), 'archive action uses the API');
+    assert.ok(page.includes("method: 'DELETE'"), 'delete action uses the API');
     assert.ok(page.includes('board = snapshot'), 'a failed move is reverted');
     assert.ok(!page.includes('innerHTML'), 'card text is never parsed as HTML');
   });
