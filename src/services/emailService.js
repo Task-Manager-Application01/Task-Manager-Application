@@ -5,9 +5,8 @@
  */
 function logTransport({ to, subject, text }) {
   console.log(`[email stub] To: ${to} | Subject: ${subject}`);
-  // Message bodies can hold secrets such as reset tokens, so they are only printed on request.
-  // Set EMAIL_LOG_BODY=1 while developing to read them from the console.
-  if (process.env.EMAIL_LOG_BODY === '1' && text) {
+  // Message bodies hold tokens (invitations, password resets). Printed by default unless EMAIL_LOG_BODY=0.
+  if (process.env.EMAIL_LOG_BODY !== '0' && text) {
     console.log(`[email stub] Body:\n${text}`);
   }
 }

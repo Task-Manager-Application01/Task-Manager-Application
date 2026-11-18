@@ -25,11 +25,17 @@
   h2 { margin: 0; font-size: 1rem; }
   section.panel { max-width: 760px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
   label { display: block; margin-bottom: 12px; font-weight: 600; }
-  input, select { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  input, select, textarea { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
   button { padding: 8px 16px; font: inherit; font-weight: 600; color: #fff; background: #2460c8; border: 0; border-radius: 6px; cursor: pointer; }
+  button.secondary { background: var(--track); color: var(--text); border: 1px solid var(--border); }
+  button.danger { background: var(--error); color: #fff; }
+  button.sm { padding: 4px 8px; font-size: 0.82rem; }
   [hidden] { display: none !important; }
   #error { color: var(--error); margin: 12px 0 0; }
   #notice { color: var(--muted); margin: 0 0 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .tab-btn { background: transparent; color: var(--muted); border: 0; padding: 6px 12px; font-weight: 600; cursor: pointer; border-radius: 4px; }
+  .tab-btn.active { background: var(--track); color: var(--text); }
   .board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; overflow-x: auto; padding-bottom: 8px; }
   .column { background: var(--column); border: 1px solid var(--border); border-top: 4px solid var(--stage); border-radius: 8px; padding: 12px; min-height: 240px; }
   .column.over { background: var(--drop); }
@@ -46,11 +52,15 @@
   .card-foot select { flex: 1 1 100%; margin: 0; width: 100%; padding: 4px 6px; font-size: .85rem; }
   .card-actions { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 6px; }
   .card-actions button { flex: 1 1 auto; min-width: 0; padding: 4px 8px; font-size: .8rem; }
-  .button-row { display: flex; gap: 8px; }
+  .button-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .form-grid label:first-child, .form-grid label:nth-child(2) { grid-column: 1 / -1; }
   .avatars { display: flex; gap: 4px; margin-left: auto; }
   .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--avatar); color: #fff; font-size: .7rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; max-width: 550px; width: 100%; max-height: 85vh; overflow-y: auto; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; background: var(--bg); gap: 8px; }
   @media (max-width: 700px) {
     main { padding: 20px 12px; }
     .board { grid-template-columns: minmax(0, 1fr); }
@@ -63,19 +73,81 @@
 <main>
   <h1>Kanban Board</h1>
 
+  <!-- Sign In, Register & Password Reset Section -->
   <section class="panel" id="login-section">
-    <h2>Sign in</h2>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-btn-signin" type="button">Sign In</button>
+      <button class="tab-btn" id="tab-btn-register" type="button">Register (Create Account)</button>
+      <button class="tab-btn" id="tab-btn-reset" type="button">Reset Password</button>
+      <button class="tab-btn" id="tab-btn-accept" type="button">Accept Invitation</button>
+    </div>
+
+    <!-- Sign In Form -->
     <form id="login-form">
+      <h2>Sign in</h2>
       <label>Email <input id="email" type="email" autocomplete="username" required></label>
       <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
       <button type="submit">Sign in</button>
     </form>
+
+    <!-- Register Form -->
+    <form id="register-form" hidden>
+      <h2>Register New Account</h2>
+      <label>Full Name <input id="reg-name" type="text" placeholder="Ada Lovelace" required></label>
+      <label>Email <input id="reg-email" type="email" placeholder="user@pes.edu" required></label>
+      <label>Password (min 8 chars, 1 uppercase, 1 digit, 1 symbol)
+        <input id="reg-password" type="password" placeholder="Passw0rd!x" required>
+      </label>
+      <button type="submit">Create Account</button>
+    </form>
+
+    <!-- Password Reset Form -->
+    <form id="reset-form" hidden>
+      <h2>Reset Password</h2>
+      <div id="reset-step-1">
+        <label>Registered Email <input id="reset-email" type="email" placeholder="user@pes.edu"></label>
+        <button type="button" id="btn-request-reset" class="secondary">Request Reset Email</button>
+        <p id="reset-msg" style="font-size:0.85rem; color:var(--muted); margin-top:8px"></p>
+      </div>
+      <hr style="margin:16px 0; border:0; border-top:1px solid var(--border)">
+      <div id="reset-step-2">
+        <label>Reset Token <input id="reset-token" type="text" placeholder="15-min token from console/email"></label>
+        <label>New Password <input id="reset-new-password" type="password" placeholder="NewPassw0rd!x"></label>
+        <button type="button" id="btn-confirm-reset" class="secondary">Confirm New Password</button>
+      </div>
+    </form>
+
+    <!-- Accept Invitation Form (New Users) -->
+    <form id="accept-form" hidden>
+      <h2>Accept Workspace Invitation</h2>
+      <p style="font-size:0.85rem; color:var(--muted); margin:0 0 12px">Paste the one-time token from your invitation email (printed in the server terminal).</p>
+      <label>Invitation Token <input id="accept-token" type="text" placeholder="64-char hex token" required></label>
+      <label>Full Name <input id="accept-name" type="text" placeholder="Ada Lovelace" required></label>
+      <label>Create Password (min 8 chars, 1 uppercase, 1 digit, 1 symbol)
+        <input id="accept-password" type="password" placeholder="Passw0rd!x" required>
+      </label>
+      <button type="submit">Join Workspace & Sign In</button>
+    </form>
   </section>
 
+  <!-- Workspace Section with Create Workspace & Actions -->
   <section class="panel" id="workspace-section" hidden>
-    <label>Workspace <select id="workspace"></select></label>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+      <label style="margin:0; flex:1">Workspace <select id="workspace"></select></label>
+      <button id="btn-logout" type="button" class="secondary" style="margin-left:12px; margin-top:18px">🚪 Sign Out</button>
+    </div>
+    <div class="button-row" style="margin-top:10px">
+      <button id="btn-new-ws" type="button" class="secondary">+ Create Workspace</button>
+      <button id="btn-ws-members" type="button" class="secondary">👥 Members</button>
+      <button id="btn-ws-settings" type="button" class="secondary">⚙️ Settings</button>
+      <button id="btn-join-token" type="button" class="secondary">✉️ Join via Token</button>
+      <button id="btn-export-csv" type="button" class="secondary">📥 Export CSV</button>
+      <button id="btn-export-pdf" type="button" class="secondary">📄 Export PDF</button>
+      <a href="/analytics" style="text-decoration:none; padding:8px 16px; background:var(--track); color:var(--text); border:1px solid var(--border); border-radius:6px; font-weight:600; font-size:inherit">📊 Analytics</a>
+    </div>
   </section>
 
+  <!-- Task Management Section (Add / Edit Task) -->
   <section class="panel" id="task-section" hidden>
     <h2 id="task-form-heading">Add task</h2>
     <form id="task-form" class="form-grid">
@@ -99,16 +171,122 @@
       </label>
       <label>Due date <input id="task-due-date" type="date"></label>
       <div class="button-row">
-        <button type="submit">Save task</button>
-        <button type="button" id="cancel-task" hidden>Cancel</button>
+        <button id="save-task" type="submit">Save task</button>
+        <button id="cancel-task" type="button" class="secondary" hidden>Cancel</button>
       </div>
     </form>
   </section>
 
   <p id="notice" hidden></p>
+  <p id="error" role="alert" hidden></p>
   <div class="board" id="board" hidden></div>
 
-  <p id="error" role="alert" hidden></p>
+  <!-- Join via Token Modal (Existing Signed-in Users) -->
+  <div class="modal-overlay" id="modal-join-token" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Join Workspace via Invitation Token</h2>
+        <button type="button" class="secondary sm" id="btn-close-join-token">✕</button>
+      </div>
+      <form id="join-token-form">
+        <label>Invitation Token <input id="logged-in-token" type="text" placeholder="Paste 64-char hex token from terminal" required></label>
+        <div class="button-row" style="margin-top:16px; justify-content:flex-end">
+          <button type="submit">Join Workspace</button>
+          <button type="button" class="secondary" id="btn-cancel-join-token">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Workspace Modal -->
+  <div class="modal-overlay" id="modal-new-ws" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Create New Workspace</h2>
+        <button type="button" class="secondary sm" id="btn-close-new-ws">✕</button>
+      </div>
+      <form id="new-ws-form">
+        <label>Workspace Title <input id="new-ws-title" type="text" required placeholder="Project Team 4"></label>
+        <label>Description <textarea id="new-ws-desc" placeholder="Workspace objectives..."></textarea></label>
+        <div class="button-row" style="margin-top:16px; justify-content:flex-end">
+          <button type="submit">Create Workspace</button>
+          <button type="button" class="secondary" id="btn-cancel-new-ws">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Workspace Members Modal -->
+  <div class="modal-overlay" id="modal-ws-members" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Workspace Members & Invitations</h2>
+        <button type="button" class="secondary sm" id="btn-close-ws-members">✕</button>
+      </div>
+      <div id="members-list" style="margin-bottom:16px"></div>
+      <h3>Invite Member (Email Invitation)</h3>
+      <form id="invite-form" style="display:flex; gap:8px; margin-top:8px">
+        <input type="email" id="invite-email" placeholder="colleague@pes.edu" required style="margin:0; flex:1">
+        <select id="invite-role" style="margin:0; width:120px">
+          <option value="Member">Member</option>
+          <option value="Viewer">Viewer</option>
+          <option value="Admin">Admin</option>
+        </select>
+        <button type="submit" class="sm">Invite</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Workspace Settings Modal -->
+  <div class="modal-overlay" id="modal-ws-settings" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Workspace Settings</h2>
+        <button type="button" class="secondary sm" id="btn-close-ws-settings">✕</button>
+      </div>
+      <form id="ws-settings-form">
+        <label>Title <input id="ws-settings-title" type="text" required></label>
+        <label>Description <textarea id="ws-settings-desc"></textarea></label>
+        <div class="button-row" style="margin-top:16px">
+          <button type="submit">Save Changes</button>
+          <button type="button" class="danger" id="btn-delete-workspace" style="margin-left:auto">Delete Workspace</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Subtasks & Attachments Details Modal -->
+  <div class="modal-overlay" id="modal-task-details" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modal-task-title">Task Details</h2>
+        <button type="button" class="secondary sm" id="btn-close-task-details">✕</button>
+      </div>
+      <div style="margin-bottom:16px">
+        <h3>Subtask Checklists (<span id="modal-task-progress">0%</span>)</h3>
+        <div id="modal-subtasks-list"></div>
+        <div style="display:flex; gap:8px; margin-top:8px">
+          <input type="text" id="new-subtask-title" placeholder="New checklist item..." style="margin:0; flex:1">
+          <button type="button" class="sm" id="btn-add-subtask">+ Add Subtask</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border); padding-top:16px">
+        <h3>Attachments (10 MB Max)</h3>
+        <div id="modal-attachments-list"></div>
+        <div style="display:flex; gap:6px; margin-top:8px; align-items:center">
+          <input type="text" id="att-name" placeholder="File name (notes.pdf)" style="margin:0; flex:1">
+          <input type="number" id="att-size" placeholder="Bytes" style="margin:0; width:90px">
+          <select id="att-mime" style="margin:0; width:100px">
+            <option value="application/pdf">PDF</option>
+            <option value="image/png">PNG</option>
+            <option value="image/jpeg">JPG</option>
+            <option value="application/zip">ZIP</option>
+          </select>
+          <button type="button" class="secondary sm" id="btn-add-attachment">Attach</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -120,88 +298,46 @@
   ];
 
   let token = null;
+  let currentUserId = null;
   let board = {};
   let canMove = false;
   let draggedId = null;
   let currentWorkspaceId = null;
+  let activeDetailTaskId = null;
   const roles = new Map(); // workspace_id -> role
   const el = id => document.getElementById(id);
+
+  function localDateString(date = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  el('task-due-date').min = localDateString();
+
+  function formatErrorMessage(payload, fallback) {
+    if (!payload) return fallback;
+    if (Array.isArray(payload.details) && payload.details.length > 0) {
+      return payload.details.join(' ');
+    }
+    return payload.message || payload.error || fallback;
+  }
 
   function showError(message) {
     el('error').textContent = message;
     el('error').hidden = !message;
   }
 
-  async function api(path, options = {}) {
-    const headers = { 'Content-Type': 'application/json' };
+  async function api(path, options = {}, responseType = 'json') {
+    const headers = options.headers || { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(path, { ...options, headers });
+    if (responseType === 'blob') {
+      if (!response.ok) throw new Error('File download failed.');
+      return await response.blob();
+    }
     const payload = await response.json();
-    if (!response.ok) {
-      const details = Array.isArray(payload.details) ? payload.details : [];
-      const reasons = [payload.message, ...details].filter(Boolean);
-      throw new Error(reasons.join(' ') || payload.error || 'Request failed.');
-    }
+    if (!response.ok) throw new Error(formatErrorMessage(payload, 'Request failed.'));
     return payload.data;
-  }
-
-  function allTasks() {
-    return COLUMNS.flatMap(column => board[column.id] || []);
-  }
-
-  function localDateString(date = new Date()) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  function resetTaskForm() {
-    el('task-form').reset();
-    el('task-id').value = '';
-    el('task-form-heading').textContent = 'Add task';
-    el('task-status').value = 'To-Do';
-    el('task-priority').value = 'Medium';
-    el('task-due-date').min = localDateString();
-    el('cancel-task').hidden = true;
-  }
-
-  function editTask(taskId) {
-    const task = allTasks().find(item => item.task_id === taskId);
-    if (!task) return;
-    el('task-id').value = task.task_id;
-    el('task-title').value = task.title;
-    el('task-description').value = task.description || '';
-    el('task-priority').value = task.priority;
-    el('task-status').value = task.status;
-    el('task-due-date').value = task.due_date || '';
-    el('task-due-date').removeAttribute('min');
-    el('task-form-heading').textContent = 'Edit task';
-    el('cancel-task').hidden = false;
-    el('task-title').focus();
-  }
-
-  async function archiveTask(taskId) {
-    if (!window.confirm('Archive this task?')) return;
-    try {
-      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}/archive`, { method: 'POST' });
-      await loadBoard();
-    } catch (err) {
-      showError(`Could not archive the task: ${err.message}`);
-    }
-  }
-
-  async function deleteTask(taskId) {
-    if (!window.confirm('Permanently delete this task?')) return;
-    try {
-      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ confirm: true })
-      });
-      await loadBoard();
-    } catch (err) {
-      showError(`Could not delete the task: ${err.message}`);
-    }
   }
 
   function findCard(taskId) {
@@ -210,6 +346,56 @@
       if (card) return { card, from: column.id };
     }
     return null;
+  }
+
+  function resetTaskForm() {
+    el('task-form').reset();
+    el('task-id').value = '';
+    el('task-status').value = 'To-Do';
+    el('task-priority').value = 'Medium';
+    el('task-form-heading').textContent = 'Add task';
+    el('save-task').textContent = 'Save task';
+    el('cancel-task').hidden = true;
+  }
+
+  function editTask(taskId) {
+    const found = findCard(taskId);
+    if (!found) return;
+    const task = found.card;
+    el('task-id').value = task.task_id;
+    el('task-title').value = task.title;
+    el('task-description').value = task.description || '';
+    el('task-priority').value = task.priority || 'Medium';
+    el('task-status').value = task.status;
+    el('task-due-date').value = task.due_date ? String(task.due_date).slice(0, 10) : '';
+    el('task-form-heading').textContent = `Edit task: ${task.title}`;
+    el('save-task').textContent = 'Update task';
+    el('cancel-task').hidden = false;
+    el('task-title').focus();
+  }
+
+  async function archiveTask(taskId) {
+    showError('');
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}/archive`, { method: 'POST' });
+      await loadBoard();
+    } catch (err) {
+      showError(`Could not archive task: ${err.message}`);
+    }
+  }
+
+  async function deleteTask(taskId) {
+    if (!confirm('Are you sure you want to permanently delete this task?')) return;
+    showError('');
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(taskId)}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirm: true })
+      });
+      await loadBoard();
+    } catch (err) {
+      showError(`Could not delete task: ${err.message}`);
+    }
   }
 
   async function moveCard(taskId, targetColumn) {
@@ -297,19 +483,28 @@
 
       const actions = document.createElement('div');
       actions.className = 'card-actions';
+
+      const detailsBtn = document.createElement('button');
+      detailsBtn.type = 'button';
+      detailsBtn.textContent = 'Checklists';
+      detailsBtn.addEventListener('click', () => openTaskDetailsModal(task.task_id));
+
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.textContent = 'Edit';
       edit.addEventListener('click', () => editTask(task.task_id));
+
       const archive = document.createElement('button');
       archive.type = 'button';
       archive.textContent = 'Archive';
       archive.addEventListener('click', () => archiveTask(task.task_id));
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'Delete';
       remove.addEventListener('click', () => deleteTask(task.task_id));
-      actions.append(edit, archive, remove);
+
+      actions.append(detailsBtn, edit, archive, remove);
       foot.append(actions);
     }
 
@@ -405,6 +600,414 @@
     }
   });
 
+  // Task Details (Subtasks & Attachments) Modal
+  async function openTaskDetailsModal(taskId) {
+    activeDetailTaskId = taskId;
+    try {
+      const task = await api(`/api/v1/tasks/${encodeURIComponent(taskId)}`);
+      el('modal-task-title').textContent = task.title;
+      el('modal-task-progress').textContent = `${task.progress_percentage || 0}%`;
+      await loadModalSubtasks(taskId);
+      await loadModalAttachments(taskId);
+      el('modal-task-details').hidden = false;
+    } catch (err) { showError(err.message); }
+  }
+
+  async function loadModalSubtasks(taskId) {
+    const subtasks = await api(`/api/v1/tasks/${encodeURIComponent(taskId)}/subtasks`);
+    const list = el('modal-subtasks-list');
+    list.replaceChildren(...subtasks.map((st, idx) => {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = Boolean(st.is_completed);
+      check.style.width = 'auto';
+      check.style.margin = '0';
+      check.addEventListener('change', async () => {
+        await api(`/api/v1/subtasks/${encodeURIComponent(st.subtask_id)}`, {
+          method: 'PUT',
+          body: JSON.stringify({ is_completed: check.checked })
+        });
+        await openTaskDetailsModal(taskId);
+        await loadBoard();
+      });
+
+      const title = document.createElement('span');
+      title.textContent = st.title;
+      title.style.flex = '1';
+      if (st.is_completed) title.style.textDecoration = 'line-through';
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'danger sm';
+      del.textContent = '✕';
+      del.addEventListener('click', async () => {
+        await api(`/api/v1/subtasks/${encodeURIComponent(st.subtask_id)}`, { method: 'DELETE' });
+        await openTaskDetailsModal(taskId);
+        await loadBoard();
+      });
+
+      row.append(check, title, del);
+      return row;
+    }));
+  }
+
+  el('btn-add-subtask').addEventListener('click', async () => {
+    const title = el('new-subtask-title').value.trim();
+    if (!title || !activeDetailTaskId) return;
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(activeDetailTaskId)}/subtasks`, {
+        method: 'POST',
+        body: JSON.stringify({ title })
+      });
+      el('new-subtask-title').value = '';
+      await openTaskDetailsModal(activeDetailTaskId);
+      await loadBoard();
+    } catch (err) { showError(err.message); }
+  });
+
+  async function loadModalAttachments(taskId) {
+    const atts = await api(`/api/v1/tasks/${encodeURIComponent(taskId)}/attachments`);
+    const list = el('modal-attachments-list');
+    list.replaceChildren(...atts.map(att => {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      const name = document.createElement('span');
+      name.textContent = `${att.file_name} (${Math.round((att.file_size || 0) / 1024)} KB)`;
+      name.style.flex = '1';
+
+      const dl = document.createElement('a');
+      dl.textContent = 'Download';
+      dl.href = `/api/v1/attachments/download/${encodeURIComponent(att.download_token)}`;
+      dl.target = '_blank';
+      dl.style.fontSize = '0.85rem';
+
+      row.append(name, dl);
+      return row;
+    }));
+  }
+
+  el('btn-add-attachment').addEventListener('click', async () => {
+    if (!activeDetailTaskId) return;
+    const file_name = el('att-name').value.trim();
+    const file_size = Number(el('att-size').value) || 1024;
+    const mime_type = el('att-mime').value;
+    if (!file_name) return;
+    try {
+      await api(`/api/v1/tasks/${encodeURIComponent(activeDetailTaskId)}/attachments`, {
+        method: 'POST',
+        body: JSON.stringify({ file_name, file_size, mime_type })
+      });
+      el('att-name').value = '';
+      await loadModalAttachments(activeDetailTaskId);
+    } catch (err) { showError(err.message); }
+  });
+
+  el('btn-close-task-details').addEventListener('click', () => { el('modal-task-details').hidden = true; });
+
+  // Sign Out
+  el('btn-logout').addEventListener('click', () => {
+    token = null;
+    currentUserId = null;
+    el('login-section').hidden = false;
+    el('workspace-section').hidden = true;
+    el('task-section').hidden = true;
+    el('board').hidden = true;
+    el('notice').textContent = '';
+    showError('');
+  });
+
+  // Workspace Creation, Members & Settings
+  el('btn-new-ws').addEventListener('click', () => { el('modal-new-ws').hidden = false; });
+  el('btn-close-new-ws').addEventListener('click', () => { el('modal-new-ws').hidden = true; });
+  el('btn-cancel-new-ws').addEventListener('click', () => { el('modal-new-ws').hidden = true; });
+
+  el('new-ws-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const created = await api('/api/v1/workspaces', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: el('new-ws-title').value,
+          description: el('new-ws-desc').value
+        })
+      });
+      el('modal-new-ws').hidden = true;
+      el('new-ws-title').value = '';
+      el('new-ws-desc').value = '';
+      await refreshWorkspacesList(created.workspace_id);
+    } catch (err) { showError(err.message); }
+  });
+
+  el('btn-ws-members').addEventListener('click', async () => {
+    el('modal-ws-members').hidden = false;
+    await renderMembersList();
+  });
+  el('btn-close-ws-members').addEventListener('click', () => { el('modal-ws-members').hidden = true; });
+
+  async function renderMembersList() {
+    try {
+      const members = await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}/members`);
+      const list = el('members-list');
+      const isAdmin = roles.get(currentWorkspaceId) === 'Admin';
+      list.replaceChildren(...members.map(m => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        const info = document.createElement('span');
+        info.textContent = `${m.full_name || m.email} (${m.role})`;
+        info.style.flex = '1';
+        row.append(info);
+
+        if (isAdmin && m.user_id !== currentUserId) {
+          const rem = document.createElement('button');
+          rem.className = 'danger sm';
+          rem.textContent = 'Remove';
+          rem.addEventListener('click', async () => {
+            await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}/members/${encodeURIComponent(m.user_id)}`, { method: 'DELETE' });
+            await renderMembersList();
+          });
+          row.append(rem);
+        }
+        return row;
+      }));
+    } catch (_) {}
+  }
+
+  el('invite-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}/invite`, {
+        method: 'POST',
+        body: JSON.stringify({
+          email: el('invite-email').value,
+          role: el('invite-role').value
+        })
+      });
+      el('invite-email').value = '';
+      alert('Invitation sent! The one-time token has been generated and printed to the server terminal (check the console where "node src/server.js" is running).');
+      await renderMembersList();
+    } catch (err) { showError(err.message); }
+  });
+
+  el('btn-ws-settings').addEventListener('click', async () => {
+    const wsList = await api('/api/v1/workspaces');
+    const cur = wsList.find(w => w.workspace_id === currentWorkspaceId);
+    if (cur) {
+      el('ws-settings-title').value = cur.title;
+      el('ws-settings-desc').value = cur.description || '';
+      el('modal-ws-settings').hidden = false;
+    }
+  });
+  el('btn-close-ws-settings').addEventListener('click', () => { el('modal-ws-settings').hidden = true; });
+  el('ws-settings-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: el('ws-settings-title').value,
+          description: el('ws-settings-desc').value
+        })
+      });
+      el('modal-ws-settings').hidden = true;
+      await refreshWorkspacesList(currentWorkspaceId);
+    } catch (err) { showError(err.message); }
+  });
+
+  el('btn-delete-workspace').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to delete this workspace?')) return;
+    try {
+      await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}`, { method: 'DELETE' });
+      el('modal-ws-settings').hidden = true;
+      await refreshWorkspacesList();
+    } catch (err) { showError(err.message); }
+  });
+
+  // Export Reports
+  el('btn-export-csv').addEventListener('click', async () => {
+    if (!currentWorkspaceId) return;
+    try {
+      const blob = await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}/reports/csv`, {}, 'blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report_${currentWorkspaceId}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { showError(err.message); }
+  });
+
+  el('btn-export-pdf').addEventListener('click', async () => {
+    if (!currentWorkspaceId) return;
+    try {
+      const blob = await api(`/api/v1/workspaces/${encodeURIComponent(currentWorkspaceId)}/reports/pdf`, {}, 'blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `report_${currentWorkspaceId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { showError(err.message); }
+  });
+
+  // Tabs for Login, Register, Reset
+  el('tab-btn-signin').addEventListener('click', () => {
+    el('tab-btn-signin').classList.add('active');
+    el('tab-btn-register').classList.remove('active');
+    el('tab-btn-reset').classList.remove('active');
+    el('tab-btn-accept').classList.remove('active');
+    el('login-form').hidden = false;
+    el('register-form').hidden = true;
+    el('reset-form').hidden = true;
+    el('accept-form').hidden = true;
+  });
+
+  el('tab-btn-register').addEventListener('click', () => {
+    el('tab-btn-register').classList.add('active');
+    el('tab-btn-signin').classList.remove('active');
+    el('tab-btn-reset').classList.remove('active');
+    el('tab-btn-accept').classList.remove('active');
+    el('register-form').hidden = false;
+    el('login-form').hidden = true;
+    el('reset-form').hidden = true;
+    el('accept-form').hidden = true;
+  });
+
+  el('tab-btn-reset').addEventListener('click', () => {
+    el('tab-btn-reset').classList.add('active');
+    el('tab-btn-signin').classList.remove('active');
+    el('tab-btn-register').classList.remove('active');
+    el('tab-btn-accept').classList.remove('active');
+    el('reset-form').hidden = false;
+    el('login-form').hidden = true;
+    el('register-form').hidden = true;
+    el('accept-form').hidden = true;
+  });
+
+  el('tab-btn-accept').addEventListener('click', () => {
+    el('tab-btn-accept').classList.add('active');
+    el('tab-btn-signin').classList.remove('active');
+    el('tab-btn-register').classList.remove('active');
+    el('tab-btn-reset').classList.remove('active');
+    el('accept-form').hidden = false;
+    el('login-form').hidden = true;
+    el('register-form').hidden = true;
+    el('reset-form').hidden = true;
+  });
+
+  // Password Reset Flow
+  el('btn-request-reset').addEventListener('click', async () => {
+    const email = el('reset-email').value.trim();
+    if (!email) return;
+    try {
+      await api('/api/v1/auth/password-reset/request', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+      el('reset-msg').textContent = 'If the account exists, a reset token was dispatched. Check server logs.';
+    } catch (err) { showError(err.message); }
+  });
+
+  el('btn-confirm-reset').addEventListener('click', async () => {
+    const reset_token = el('reset-token').value.trim();
+    const new_password = el('reset-new-password').value;
+    if (!reset_token || !new_password) return;
+    try {
+      await api('/api/v1/auth/password-reset/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ token: reset_token, new_password })
+      });
+      alert('Password reset successful! You can now log in.');
+      el('tab-btn-signin').click();
+    } catch (err) { showError(err.message); }
+  });
+
+  // Accept Invitation (New Users)
+  el('accept-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    showError('');
+    try {
+      const auth = await api('/api/v1/invitations/accept', {
+        method: 'POST',
+        body: JSON.stringify({
+          token: el('accept-token').value.trim(),
+          full_name: el('accept-name').value,
+          password: el('accept-password').value
+        })
+      });
+      token = auth.token;
+      currentUserId = auth.user_id;
+      alert(`Welcome! ${auth.message || 'Joined workspace successfully.'}`);
+      await onAuthSuccess();
+    } catch (err) { showError(err.message); }
+  });
+
+  // Join via Token (Signed-in Users)
+  el('btn-join-token').addEventListener('click', () => { el('modal-join-token').hidden = false; });
+  el('btn-close-join-token').addEventListener('click', () => { el('modal-join-token').hidden = true; });
+  el('btn-cancel-join-token').addEventListener('click', () => { el('modal-join-token').hidden = true; });
+
+  el('join-token-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    showError('');
+    try {
+      const res = await api('/api/v1/invitations/accept', {
+        method: 'POST',
+        body: JSON.stringify({ token: el('logged-in-token').value.trim() })
+      });
+      el('modal-join-token').hidden = true;
+      el('logged-in-token').value = '';
+      alert(`Success: ${res.message || 'Joined workspace!'}`);
+      await refreshWorkspacesList(res.workspace_id);
+    } catch (err) { showError(err.message); }
+  });
+
+  // Registration Form
+  el('register-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    showError('');
+    try {
+      const auth = await api('/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: el('reg-name').value,
+          email: el('reg-email').value,
+          password: el('reg-password').value
+        })
+      });
+      token = auth.token;
+      currentUserId = auth.user_id;
+      await onAuthSuccess();
+    } catch (err) { showError(err.message); }
+  });
+
+  async function refreshWorkspacesList(preferredWsId) {
+    const workspaces = await api('/api/v1/workspaces');
+    if (workspaces.length === 0) {
+      showError('You are not a member of any workspace yet.');
+      el('workspace-section').hidden = false;
+      el('workspace').replaceChildren();
+      return;
+    }
+    workspaces.forEach(workspace => roles.set(workspace.workspace_id, workspace.role));
+    el('workspace').replaceChildren(...workspaces.map(workspace => {
+      const option = document.createElement('option');
+      option.value = workspace.workspace_id;
+      option.textContent = workspace.title;
+      if (preferredWsId && workspace.workspace_id === preferredWsId) option.selected = true;
+      return option;
+    }));
+    el('workspace-section').hidden = false;
+    resetTaskForm();
+    await loadBoard();
+  }
+
+  async function onAuthSuccess() {
+    el('login-section').hidden = true;
+    await refreshWorkspacesList();
+  }
+
   el('login-form').addEventListener('submit', async event => {
     event.preventDefault();
     showError('');
@@ -414,24 +1017,9 @@
         body: JSON.stringify({ email: el('email').value, password: el('password').value })
       });
       token = auth.token;
+      currentUserId = auth.user_id;
       el('password').value = '';
-
-      const workspaces = await api('/api/v1/workspaces');
-      el('login-section').hidden = true;
-      if (workspaces.length === 0) {
-        showError('You are not a member of any workspace yet.');
-        return;
-      }
-      workspaces.forEach(workspace => roles.set(workspace.workspace_id, workspace.role));
-      el('workspace').replaceChildren(...workspaces.map(workspace => {
-        const option = document.createElement('option');
-        option.value = workspace.workspace_id;
-        option.textContent = workspace.title;
-        return option;
-      }));
-      el('workspace-section').hidden = false;
-      resetTaskForm();
-      await loadBoard();
+      await onAuthSuccess();
     } catch (err) {
       showError(err.message);
     }

@@ -135,6 +135,13 @@ function createServer() {
         return res.end(page);
       }
 
+      // Root redirect to Kanban UI
+      if (method === 'GET' && (pathname === '/' || pathname === '')) {
+        res.statusCode = 302;
+        res.setHeader('Location', '/kanban');
+        return res.end();
+      }
+
       // 2. Authentication Routes (Feature 1)
       if (method === 'POST' && pathname === '/api/v1/auth/register') {
         return await authController.register(req, res);

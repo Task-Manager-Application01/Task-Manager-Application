@@ -2,6 +2,8 @@ const { createServer } = require('./app');
 const deadlineScheduler = require('./services/deadlineScheduler');
 const { db } = require('./models/Database');
 
+process.env.EMAIL_LOG_BODY = process.env.EMAIL_LOG_BODY || '1';
+
 const PORT = process.env.PORT || 3000;
 const server = createServer();
 
