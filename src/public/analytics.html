@@ -61,6 +61,13 @@
     <div id="status-chart"></div>
   </section>
 
+  <section id="velocity-section" hidden>
+    <h2>Sprint completion velocity</h2>
+    <label>Sprint window (days) <input id="sprint-days" type="number" min="1" max="999" value="14"></label>
+    <div id="velocity-chart"></div>
+    <p class="legend">Tasks currently marked Done and updated during the selected window, expressed per week.</p>
+  </section>
+
   <section id="workload-section" hidden>
     <h2>Member workload</h2>
     <div id="workload-chart"></div>
@@ -161,9 +168,19 @@
     showError('');
     try {
       const workspaceId = encodeURIComponent(el('workspace').value);
-      const data = await api(`/api/v1/workspaces/${workspaceId}/analytics/distribution`);
+      const sprintDays = Number(el('sprint-days').value);
+      if (!Number.isInteger(sprintDays) || sprintDays < 1 || sprintDays > 999) throw new Error('Sprint window must be between 1 and 999 days.');
+      const [data, kpi] = await Promise.all([
+        api(`/api/v1/workspaces/${workspaceId}/analytics/distribution`),
+        api(`/api/v1/workspaces/${workspaceId}/analytics/kpi?sprint_days=${sprintDays}`)
+      ]);
       renderStatus(data.status_distribution);
       renderWorkload(data.member_workload);
+      const velocity = document.createElement('p');
+      velocity.textContent = `${kpi.team_velocity_per_week} tasks per week · ${kpi.completed_tasks} of ${kpi.total_tasks} tasks done · ${kpi.overdue_tasks} overdue`;
+      const chart = barRow('Completion', kpi.completion_rate_percentage, 'var(--done)', `${kpi.completion_rate_percentage}%`);
+      el('velocity-chart').replaceChildren(velocity, chart);
+      el('velocity-section').hidden = false;
       el('status-section').hidden = false;
       el('workload-section').hidden = false;
     } catch (err) {
@@ -172,6 +189,7 @@
   }
 
   el('workspace').addEventListener('change', loadCharts);
+  el('sprint-days').addEventListener('change', loadCharts);
 
   el('login-form').addEventListener('submit', async event => {
     event.preventDefault();

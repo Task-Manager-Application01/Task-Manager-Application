@@ -591,6 +591,7 @@ class Database {
       created_at: new Date().toISOString()
     };
     this.notifications.set(notifId, notif);
+    this._persistIfEnabled();
     return { ...notif };
   }
 
@@ -607,6 +608,7 @@ class Database {
     if (!n) return false;
     n.is_read = true;
     this.notifications.set(notifId, n);
+    this._persistIfEnabled();
     return true;
   }
 
@@ -626,6 +628,7 @@ class Database {
     // Append-only freeze
     Object.freeze(entry);
     this.auditLogs.push(entry);
+    this._persistIfEnabled();
     return entry;
   }
 

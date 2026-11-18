@@ -154,6 +154,7 @@
       <input id="task-id" type="hidden">
       <label>Title <input id="task-title" maxlength="150" required></label>
       <label>Description <input id="task-description" maxlength="2000"></label>
+      <label>Tags <input id="task-tags" placeholder="e.g. frontend, urgent"></label>
       <label>Priority
         <select id="task-priority" required>
           <option value="Low">Low</option>
@@ -177,9 +178,29 @@
     </form>
   </section>
 
+  <section class="panel" id="search-section" hidden>
+    <h2>Search &amp; filter tasks</h2>
+    <form id="search-form">
+      <label>Keyword <input id="search-keyword" type="search" placeholder="Search titles, descriptions and tags"></label>
+      <label>Tags, priority or status <input id="search-tags" type="text" placeholder="e.g. high, in review" aria-describedby="search-tags-help"></label>
+      <p id="search-tags-help">Separate filters with commas, e.g. high, review. Tasks must match all filters.</p>
+      <label>Sort by <select id="search-sort"><option value="created_at">Date created</option><option value="due_date">Due date</option><option value="priority">Priority</option><option value="title">Title</option></select></label>
+      <label>Sort order <select id="search-order"><option value="desc">Descending</option><option value="asc">Ascending</option></select></label>
+      <div class="button-row">
+        <button type="submit">Search</button>
+        <button id="clear-search" type="button" class="secondary">Clear filters</button>
+      </div>
+    </form>
+    <p id="search-results" role="status" aria-live="polite" hidden></p>
+  </section>
+
   <p id="notice" hidden></p>
   <p id="error" role="alert" hidden></p>
   <div class="board" id="board" hidden></div>
+  <section class="panel" id="feeds-section" hidden>
+    <h2>Notifications</h2><p>Updates every 10 seconds.</p><div id="notifications-list"></div>
+    <h2>Workspace activity</h2><div id="audit-list"></div>
+  </section>
 
   <!-- Join via Token Modal (Existing Signed-in Users) -->
   <div class="modal-overlay" id="modal-join-token" hidden>
@@ -304,6 +325,12 @@
   let draggedId = null;
   let currentWorkspaceId = null;
   let activeDetailTaskId = null;
+  let searchFilters = { keyword: '', tags: [] };
+  let matchingTaskIds = null;
+  let resultOrder = new Map();
+  let boardRequestId = 0;
+  let feedTimer = null;
+  let searchTimer = null;
   const roles = new Map(); // workspace_id -> role
   const el = id => document.getElementById(id);
 
@@ -365,6 +392,7 @@
     el('task-id').value = task.task_id;
     el('task-title').value = task.title;
     el('task-description').value = task.description || '';
+    el('task-tags').value = (task.tags || []).join(', ');
     el('task-priority').value = task.priority || 'Medium';
     el('task-status').value = task.status;
     el('task-due-date').value = task.due_date ? String(task.due_date).slice(0, 10) : '';
@@ -416,6 +444,7 @@
         method: 'POST',
         body: JSON.stringify({ targetColumn })
       });
+      if (searchFilters.keyword || searchFilters.tags.length) await loadBoard();
     } catch (err) {
       board = snapshot;
       render();
@@ -515,7 +544,8 @@
 
   function render() {
     el('board').replaceChildren(...COLUMNS.map(column => {
-      const tasks = board[column.id] || [];
+      const tasks = (board[column.id] || []).filter(task => !matchingTaskIds || matchingTaskIds.has(task.task_id))
+        .sort((a, b) => (resultOrder.get(a.task_id) ?? Infinity) - (resultOrder.get(b.task_id) ?? Infinity));
       const wrapper = document.createElement('section');
       wrapper.className = 'column';
       wrapper.dataset.column = column.id;
@@ -552,22 +582,105 @@
   async function loadBoard() {
     showError('');
     const workspaceId = el('workspace').value;
+    const requestId = ++boardRequestId;
     currentWorkspaceId = workspaceId;
+    el('search-section').hidden = !workspaceId;
+    if (!workspaceId) return;
     canMove = roles.get(workspaceId) !== 'Viewer';
     el('task-section').hidden = !canMove;
     el('notice').textContent = 'You have view-only access, so cards cannot be moved.';
     el('notice').hidden = canMove;
     try {
-      board = await api(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/kanban`);
+      const nextBoard = await api(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/kanban`);
+      let nextMatches = null;
+      let nextOrder = new Map();
+      {
+        const params = new URLSearchParams({ workspace_id: workspaceId });
+        if (searchFilters.keyword) params.set('q', searchFilters.keyword);
+        if (searchFilters.tags.length) params.set('tags', searchFilters.tags.join(','));
+        params.set('sort_by', el('search-sort').value);
+        params.set('sort_order', el('search-order').value);
+        const results = await api(`/api/v1/search/tasks?${params}`);
+        nextOrder = new Map(results.map((task, index) => [task.task_id, index]));
+        if (searchFilters.keyword || searchFilters.tags.length) nextMatches = new Set(results.map(task => task.task_id));
+      }
+      if (requestId !== boardRequestId) return;
+      board = nextBoard;
+      matchingTaskIds = nextMatches;
+      resultOrder = nextOrder;
+      el('search-results').hidden = !nextMatches;
+      el('search-results').textContent = nextMatches ? `${nextMatches.size} matching task${nextMatches.size === 1 ? '' : 's'}.` : '';
       render();
       el('board').hidden = false;
+      el('feeds-section').hidden = false;
+      loadFeeds();
     } catch (err) {
+      if (requestId !== boardRequestId) return;
       el('board').hidden = true;
       showError(err.message);
     }
   }
 
   el('workspace').addEventListener('change', loadBoard);
+  function applySearch() {
+    searchFilters = {
+      keyword: el('search-keyword').value.trim(),
+      tags: el('search-tags').value.split(',').map(tag => tag.trim()).filter(Boolean)
+    };
+    loadBoard();
+  }
+  el('search-form').addEventListener('submit', event => {
+    event.preventDefault();
+    clearTimeout(searchTimer);
+    applySearch();
+  });
+  for (const id of ['search-keyword', 'search-tags']) el(id).addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applySearch, 300);
+  });
+  for (const id of ['search-sort', 'search-order']) el(id).addEventListener('change', applySearch);
+  el('clear-search').addEventListener('click', () => {
+    clearTimeout(searchTimer);
+    el('search-form').reset();
+    searchFilters = { keyword: '', tags: [] };
+    loadBoard();
+  });
+  async function loadFeeds() {
+    const userId = currentUserId;
+    const workspaceId = currentWorkspaceId;
+    if (!token || !userId || !workspaceId) return;
+    try {
+      const [notifications, activity] = await Promise.all([
+        api(`/api/v1/users/${encodeURIComponent(userId)}/notifications`),
+        api(`/api/v1/workspaces/${encodeURIComponent(workspaceId)}/audit-logs`)
+      ]);
+      if (userId !== currentUserId || workspaceId !== currentWorkspaceId || !token) return;
+      const notificationRows = notifications.map(notification => {
+        const row = document.createElement('div'); row.className = 'item-row';
+        const info = document.createElement('span');
+        info.textContent = `${notification.is_read ? '' : 'Unread: '}${notification.title} — ${notification.message} (${new Date(notification.created_at).toLocaleString()})`;
+        row.append(info);
+        if (!notification.is_read) {
+          const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary sm'; button.textContent = 'Mark read';
+          button.addEventListener('click', async () => {
+            try { await api(`/api/v1/notifications/${encodeURIComponent(notification.notification_id)}/read`, { method: 'POST' }); await loadFeeds(); }
+            catch (err) { showError(err.message); }
+          });
+          row.append(button);
+        }
+        return row;
+      });
+      if (!notificationRows.length) { const p = document.createElement('p'); p.textContent = 'No notifications yet.'; notificationRows.push(p); }
+      el('notifications-list').replaceChildren(...notificationRows);
+      const auditRows = activity.map(entry => {
+        const row = document.createElement('div'); row.className = 'item-row';
+        row.textContent = `${new Date(entry.timestamp).toLocaleString()} — ${entry.action} — ${entry.target_entity} — by ${entry.actor_id}`;
+        return row;
+      });
+      if (!auditRows.length) { const p = document.createElement('p'); p.textContent = 'No activity yet.'; auditRows.push(p); }
+      el('audit-list').replaceChildren(...auditRows);
+    } catch (err) { if (token && workspaceId === currentWorkspaceId) showError(`Could not load activity: ${err.message}`); }
+  }
   el('cancel-task').addEventListener('click', resetTaskForm);
 
   el('task-form').addEventListener('submit', async event => {
@@ -577,6 +690,7 @@
     const payload = {
       title: el('task-title').value,
       description: el('task-description').value,
+      tags: el('task-tags').value.split(',').map(tag => tag.trim()).filter(Boolean),
       priority: el('task-priority').value,
       status: el('task-status').value,
       due_date: el('task-due-date').value || null
@@ -708,6 +822,16 @@
 
   // Sign Out
   el('btn-logout').addEventListener('click', () => {
+    clearInterval(feedTimer); feedTimer = null;
+    clearTimeout(searchTimer);
+    el('feeds-section').hidden = true;
+    el('notifications-list').replaceChildren();
+    el('audit-list').replaceChildren();
+    boardRequestId++;
+    searchFilters = { keyword: '', tags: [] };
+    matchingTaskIds = null;
+    el('search-form').reset();
+    el('search-section').hidden = true;
     token = null;
     currentUserId = null;
     el('login-section').hidden = false;
@@ -1006,6 +1130,7 @@
   async function onAuthSuccess() {
     el('login-section').hidden = true;
     await refreshWorkspacesList();
+    if (!feedTimer) feedTimer = setInterval(loadFeeds, 10000);
   }
 
   el('login-form').addEventListener('submit', async event => {

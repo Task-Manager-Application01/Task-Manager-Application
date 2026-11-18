@@ -1,0 +1,667 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R] /Count 13 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 2847 >>
+stream
+BT /F1 10 Tf 45 790 Td (SOFTWARE ENGINEERING ? TEAM 4) Tj ET
+BT /F1 16 Tf 45 766 Td (Task Manager) Tj ET
+BT /F1 16 Tf 45 741 Td (Architecture & Complete Guide) Tj ET
+BT /F1 10 Tf 45 711 Td (Special focus: Gagan B Sasalatti) Tj ET
+BT /F1 10 Tf 45 692 Td (Kanban, assignment and search) Tj ET
+BT /F1 10 Tf 45 668 Td (Current code review ? 18 November 2026) Tj ET
+BT /F1 16 Tf 45 634 Td (Project overview) Tj ET
+BT /F1 10 Tf 45 604 Td (This is a multi-workspace task management application built for PES University Software) Tj ET
+BT /F1 10 Tf 45 590 Td (Engineering. Team members sign in, work inside workspaces, manage tasks and subtasks, and) Tj ET
+BT /F1 10 Tf 45 576 Td (monitor progress using a Kanban board, search and analytics.) Tj ET
+BT /F1 10 Tf 45 552 Td (| Feature set | Assigned owner in README | Area) Tj ET
+BT /F1 10 Tf 45 528 Td (| A | Chetana V Iyer | Authentication, RBAC, workspaces) Tj ET
+BT /F1 10 Tf 45 504 Td (| B | Dhadhal Rudra | Task CRUD, subtasks, attachments) Tj ET
+BT /F1 10 Tf 45 480 Td (| C | Gagan B Sasalatti, PES1UG24CS164 | Kanban, assignment, search and tags) Tj ET
+BT /F1 10 Tf 45 456 Td (| D | Harsh Pandya | Analytics, reports, notifications and audit) Tj ET
+BT /F1 10 Tf 45 432 Td (This guide distinguishes assigned ownership from proof of individual authorship. It) Tj ET
+BT /F1 10 Tf 45 418 Td (documents the current checkout, including uncommitted changes, as inspected on 18 November) Tj ET
+BT /F1 10 Tf 45 404 Td (2026.) Tj ET
+BT /F1 10 Tf 45 380 Td (Your focus: how tasks are grouped, moved and assigned; how search and tags work; and how) Tj ET
+BT /F1 10 Tf 45 366 Td (the browser, routes, services and data store connect.) Tj ET
+BT /F1 16 Tf 45 332 Td (Run and demonstrate) Tj ET
+BT /F1 12 Tf 45 302 Td (Start the server) Tj ET
+BT /F1 10 Tf 45 276 Td (Install Node.js 18 or newer, open a terminal in the project folder and run:) Tj ET
+BT /F2 7.5 Tf 45 252 Td (npm start) Tj ET
+BT /F1 10 Tf 45 230.5 Td (Keep that window open. The default address is http://localhost:3000. Open /health to check) Tj ET
+BT /F1 10 Tf 45 216.5 Td (the server, /kanban for the board and /analytics for analytics. PORT changes the listening) Tj ET
+BT /F1 10 Tf 45 202.5 Td (port.) Tj ET
+BT /F1 12 Tf 45 178.5 Td (Create sample data) Tj ET
+BT /F1 10 Tf 45 152.5 Td (Open a second terminal in the same folder and run:) Tj ET
+BT /F2 7.5 Tf 45 128.5 Td (npm run demo) Tj ET
+BT /F1 10 Tf 45 107 Td (The demo requires the server to be running. It creates a user with a generated email such) Tj ET
+BT /F1 10 Tf 45 93 Td (as demo<timestamp>@pes.edu, shown in its output, and password Passw0rd!x. It creates a) Tj ET
+BT /F1 10 Tf 45 79 Td (workspace and sample task. The Kanban page also contains registration and workspace) Tj ET
+BT /F1 10 Tf 45 65 Td (creation forms in the current checkout.) Tj ET
+BT /F1 8 Tf 510 25 Td (1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 2981 >>
+stream
+BT /F1 12 Tf 45 785 Td (Try your features) Tj ET
+BT /F1 10 Tf 45 759 Td (Sign in, select or create a workspace, create tasks with tags, then move cards between) Tj ET
+BT /F1 10 Tf 45 745 Td (columns. In search, type a keyword, or enter comma-separated tags and values such as high,) Tj ET
+BT /F1 10 Tf 45 731 Td (review. Select sort field and order. Search updates after a short pause. For reports, use) Tj ET
+BT /F1 10 Tf 45 717 Td (the CSV/PDF export buttons. The analytics page has its own login.) Tj ET
+BT /F1 10 Tf 45 693 Td (To apply backend changes, stop the server with Ctrl+C and run npm start again; refresh the) Tj ET
+BT /F1 10 Tf 45 679 Td (browser. npm test runs the Node tests. Configure a strong JWT_SECRET outside demo use.) Tj ET
+BT /F1 16 Tf 45 645 Td (Architecture: what connects to what) Tj ET
+BT /F1 10 Tf 45 615 Td (Browser) Tj ET
+BT /F1 10 Tf 45 596 Td (kanban.html / analytics.html) Tj ET
+BT /F1 10 Tf 45 572 Td (HTTP requests with JSON and Bearer token) Tj ET
+BT /F1 10 Tf 45 548 Td (Node server + router) Tj ET
+BT /F1 10 Tf 45 529 Td (server.js starts; app.js routes, authenticates and checks access) Tj ET
+BT /F1 10 Tf 45 505 Td (Calls handlers and feature logic) Tj ET
+BT /F1 10 Tf 45 481 Td (Controllers and services) Tj ET
+BT /F1 10 Tf 45 462 Td (Tasks, workspaces, Kanban, search, analytics, notifications) Tj ET
+BT /F1 10 Tf 45 438 Td (Reads and updates objects) Tj ET
+BT /F1 10 Tf 45 414 Td (Database.js) Tj ET
+BT /F1 10 Tf 45 395 Td (In-memory Maps -> JSON snapshot and backups) Tj ET
+BT /F1 10 Tf 45 361 Td (Router: selects code based on URL and HTTP method. Controller: typically receives request) Tj ET
+BT /F1 10 Tf 45 347 Td (data and sends a response. Service: contains feature or business logic. Some routes call) Tj ET
+BT /F1 10 Tf 45 333 Td (services directly rather than going through a separate controller.) Tj ET
+BT /F1 10 Tf 45 309 Td (For example, a task move goes browser -> POST /tasks/:id/move -> requireTaskAccess ->) Tj ET
+BT /F1 10 Tf 45 295 Td (taskDragDrop.moveCard -> Database.js, event broadcast, audit and notifications -> JSON) Tj ET
+BT /F1 10 Tf 45 281 Td (response.) Tj ET
+BT /F1 10 Tf 45 257 Td (Actual stack: Node's built-in HTTP server, plain HTML/CSS/JavaScript and a JSON-backed) Tj ET
+BT /F1 10 Tf 45 243 Td (store. The SRS/SAD may describe React, Express or PostgreSQL; consult) Tj ET
+BT /F1 10 Tf 45 229 Td (docs/SPRINT1_DEVIATIONS.md and the current code for differences.) Tj ET
+BT /F1 16 Tf 45 195 Td (Repository and data model) Tj ET
+BT /F1 10 Tf 45 165 Td (| Path | Responsibility) Tj ET
+BT /F1 10 Tf 45 141 Td (| src/server.js | Start server, enable persistence, backups and deadline scheduler.) Tj ET
+BT /F1 10 Tf 45 117 Td (| src/app.js | HTTP routing, request parsing, token and workspace/task access checks.) Tj ET
+BT /F1 10 Tf 45 93 Td (| src/controllers/ | Authentication, workspace, task, subtask and notification request) Tj ET
+BT /F1 10 Tf 45 79 Td (handlers.) Tj ET
+BT /F1 8 Tf 510 25 Td (2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 10 0 R >>
+endobj
+10 0 obj
+<< /Length 3920 >>
+stream
+BT /F1 10 Tf 45 790 Td (| src/services/taskDragDrop.js | Your board, assignment and movement logic.) Tj ET
+BT /F1 10 Tf 45 766 Td (| src/services/searchService.js | Your task search, filters, sorting and workspace tags.) Tj ET
+BT /F1 10 Tf 45 742 Td (| src/services/realtimeService.js | Workspace-scoped server-sent event subscribers.) Tj ET
+BT /F1 10 Tf 45 718 Td (| src/models/Database.js | In-memory collections and local JSON snapshot.) Tj ET
+BT /F1 10 Tf 45 694 Td (| src/public/ | Kanban and analytics browser pages.) Tj ET
+BT /F1 10 Tf 45 670 Td (| tests/; scripts/demo.js | Automated tests and demonstration API client.) Tj ET
+BT /F1 10 Tf 45 646 Td (Core entities: user; workspace; membership connecting a user to a workspace with a role;) Tj ET
+BT /F1 10 Tf 45 632 Td (task belonging to a workspace with status, priority, assignees and tags; subtask and) Tj ET
+BT /F1 10 Tf 45 618 Td (attachment metadata belonging to a task; notification and audit entry. Collections are) Tj ET
+BT /F1 10 Tf 45 604 Td (held in Maps and serialized to data/database.json by default; backups go to data/backups.) Tj ET
+BT /F1 10 Tf 45 590 Td (This is not SQL or MongoDB.) Tj ET
+BT /F1 16 Tf 45 556 Td (Authentication, workspace and tasks) Tj ET
+BT /F1 10 Tf 45 526 Td (Registration and login are handled by authController. Passwords use salted PBKDF2; a) Tj ET
+BT /F1 10 Tf 45 512 Td (signed JWT identifies the logged-in user. The browser sends Authorization: Bearer <token>.) Tj ET
+BT /F1 10 Tf 45 498 Td (The router rejects protected calls without a valid token. RBAC checks role and workspace) Tj ET
+BT /F1 10 Tf 45 484 Td (membership: Admin and Member can contribute; Viewer can view. Workspace creation) Tj ET
+BT /F1 10 Tf 45 470 Td (automatically assigns the creator as Admin.) Tj ET
+BT /F1 10 Tf 45 446 Td (TaskController handles task creation, viewing, editing, archive and permanent deletion.) Tj ET
+BT /F1 10 Tf 45 432 Td (SubtaskController handles subtask operations; completed subtasks affect the stored) Tj ET
+BT /F1 10 Tf 45 418 Td (progress percentage. Attachments in this implementation validate and store metadata, not) Tj ET
+BT /F1 10 Tf 45 404 Td (actual file bytes. Email delivery is a logging stub; invitation and reset tokens are not) Tj ET
+BT /F1 10 Tf 45 390 Td (delivered by a real mail service.) Tj ET
+BT /F1 10 Tf 45 366 Td (Request flow: frontend collects form values; app.js parses JSON and the token; a) Tj ET
+BT /F1 10 Tf 45 352 Td (controller validates and invokes database/service functions; response JSON goes back to) Tj ET
+BT /F1 10 Tf 45 338 Td (the browser. Workspace membership restricts access to the correct team.) Tj ET
+BT /F1 16 Tf 45 304 Td (Your part A: Kanban board) Tj ET
+BT /F1 10 Tf 45 274 Td (A Kanban board groups tasks into To-Do, In-Progress, Review and Done. Each task stores a) Tj ET
+BT /F1 10 Tf 45 260 Td (status; there is no separate database table per column. The browser requests GET) Tj ET
+BT /F1 10 Tf 45 246 Td (/api/v1/workspaces/:workspaceId/kanban; app.js verifies workspace access and invokes) Tj ET
+BT /F1 10 Tf 45 232 Td (getKanbanBoard\(workspaceId\).) Tj ET
+BT /F1 10 Tf 45 208 Td (Fetch active tasks belonging to the workspace.) Tj ET
+BT /F1 10 Tf 45 184 Td (Create an array for each of the four statuses.) Tj ET
+BT /F1 10 Tf 45 160 Td (For each task, look at its status and append it to the matching array.) Tj ET
+BT /F1 10 Tf 45 136 Td (Look up assigned users and include names and initials as avatar data.) Tj ET
+BT /F1 10 Tf 45 112 Td (Return the grouped object for the browser to render.) Tj ET
+BT /F1 10 Tf 45 88 Td (The taskDragDrop service is the backend implementation; the board DOM and drag events live) Tj ET
+BT /F1 10 Tf 45 74 Td (in src/public/kanban.html. The result contains enriched task objects; the original task is) Tj ET
+BT /F1 10 Tf 45 60 Td (not permanently changed merely by building the board.) Tj ET
+BT /F1 8 Tf 510 25 Td (3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 12 0 R >>
+endobj
+12 0 obj
+<< /Length 3028 >>
+stream
+BT /F1 12 Tf 45 780 Td (Actual code: grouping) Tj ET
+BT /F2 7.5 Tf 45 754 Td ( 69   getKanbanBoard\(workspaceId\) {) Tj ET
+BT /F2 7.5 Tf 45 737.5 Td ( 70     const allTasks = db.findTasks\(t => t.workspace_id === workspaceId\);) Tj ET
+BT /F2 7.5 Tf 45 721 Td ( 71 ) Tj ET
+BT /F2 7.5 Tf 45 704.5 Td ( 72     const board = {) Tj ET
+BT /F2 7.5 Tf 45 688 Td ( 73       'To-Do': [],) Tj ET
+BT /F2 7.5 Tf 45 671.5 Td ( 74       'In-Progress': [],) Tj ET
+BT /F2 7.5 Tf 45 655 Td ( 75       'Review': [],) Tj ET
+BT /F2 7.5 Tf 45 638.5 Td ( 76       'Done': []) Tj ET
+BT /F2 7.5 Tf 45 622 Td ( 77     };) Tj ET
+BT /F2 7.5 Tf 45 605.5 Td ( 78 ) Tj ET
+BT /F2 7.5 Tf 45 589 Td ( 79     allTasks.forEach\(task => {) Tj ET
+BT /F2 7.5 Tf 45 572.5 Td ( 80       const col = task.status;) Tj ET
+BT /F2 7.5 Tf 45 556 Td ( 81       if \(board[col]\) {) Tj ET
+BT /F2 7.5 Tf 45 539.5 Td ( 82         // Hydrate avatar indicators for assignees) Tj ET
+BT /F2 7.5 Tf 45 523 Td ( 83         const hydratedAssignees = \(task.assignees || []\).map\(uid => {) Tj ET
+BT /F2 7.5 Tf 45 506.5 Td ( 84           const user = db.getUser\(uid\);) Tj ET
+BT /F2 7.5 Tf 45 490 Td ( 85           return user) Tj ET
+BT /F2 7.5 Tf 45 473.5 Td ( 86             ? { user_id: uid, name: user.full_name, initials: user.full_name.split\(' '\).map\(n =>) Tj ET
+BT /F2 7.5 Tf 45 462 Td (n[0]\).join\(''\).toUpperCase\(\) }) Tj ET
+BT /F2 7.5 Tf 45 445.5 Td ( 87             : { user_id: uid, name: 'Unknown', initials: '?' };) Tj ET
+BT /F2 7.5 Tf 45 429 Td ( 88         }\);) Tj ET
+BT /F2 7.5 Tf 45 412.5 Td ( 89 ) Tj ET
+BT /F2 7.5 Tf 45 396 Td ( 90         board[col].push\({) Tj ET
+BT /F2 7.5 Tf 45 379.5 Td ( 91           ...task,) Tj ET
+BT /F2 7.5 Tf 45 363 Td ( 92           assignee_avatars: hydratedAssignees) Tj ET
+BT /F2 7.5 Tf 45 346.5 Td ( 93         }\);) Tj ET
+BT /F2 7.5 Tf 45 330 Td ( 94       }) Tj ET
+BT /F2 7.5 Tf 45 313.5 Td ( 95     }\);) Tj ET
+BT /F2 7.5 Tf 45 297 Td ( 96 ) Tj ET
+BT /F2 7.5 Tf 45 280.5 Td ( 97     return board;) Tj ET
+BT /F1 10 Tf 45 259 Td (Understand: findTasks filters by workspace. board[col] chooses a column. The array map) Tj ET
+BT /F1 10 Tf 45 245 Td (transforms assignee IDs into display data; push adds the card to its column.) Tj ET
+BT /F1 16 Tf 45 211 Td (Your part B: moving a task) Tj ET
+BT /F1 10 Tf 45 181 Td (When a user moves a card, the page makes an optimistic update: it changes the displayed) Tj ET
+BT /F1 10 Tf 45 167 Td (board immediately, sends POST /api/v1/tasks/:taskId/move, and restores the snapshot if the) Tj ET
+BT /F1 10 Tf 45 153 Td (request fails. The request body contains {"targetColumn":"In-Progress"}. The actor ID) Tj ET
+BT /F1 10 Tf 45 139 Td (comes from the authenticated token.) Tj ET
+BT /F1 10 Tf 45 115 Td (The router checks write access to the task's workspace.) Tj ET
+BT /F1 10 Tf 45 91 Td (moveCard checks the target is a valid status and finds the task.) Tj ET
+BT /F1 10 Tf 45 67 Td (If old and new statuses are equal, it returns transitioned: false.) Tj ET
+BT /F1 8 Tf 510 25 Td (4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 14 0 R >>
+endobj
+14 0 obj
+<< /Length 3124 >>
+stream
+BT /F1 10 Tf 45 785 Td (Otherwise it updates status, publishes task.moved, records an audit event and notifies) Tj ET
+BT /F1 10 Tf 45 771 Td (assignees other than the actor.) Tj ET
+BT /F1 10 Tf 45 747 Td (It returns the updated task and both statuses.) Tj ET
+BT /F1 10 Tf 45 723 Td (These are separate operations, not a single database transaction. The backend publishes) Tj ET
+BT /F1 10 Tf 45 709 Td (server-sent events to workspace subscribers; the notification/audit page refreshes through) Tj ET
+BT /F1 10 Tf 45 695 Td (polling, so do not describe the complete interface as instant push.) Tj ET
+BT /F1 12 Tf 45 671 Td (Actual code: moveCard) Tj ET
+BT /F2 7.5 Tf 45 645 Td (103    */) Tj ET
+BT /F2 7.5 Tf 45 628.5 Td (104   moveCard\(taskId, targetColumn, actorId\) {) Tj ET
+BT /F2 7.5 Tf 45 612 Td (105     if \(!KANBAN_COLUMNS.includes\(targetColumn\)\) {) Tj ET
+BT /F2 7.5 Tf 45 595.5 Td (106       throw new Error\(`Invalid Kanban column: '${targetColumn}'. Must be one of:) Tj ET
+BT /F2 7.5 Tf 45 584 Td (${KANBAN_COLUMNS.join\(', '\)}.`\);) Tj ET
+BT /F2 7.5 Tf 45 567.5 Td (107     }) Tj ET
+BT /F2 7.5 Tf 45 551 Td (108 ) Tj ET
+BT /F2 7.5 Tf 45 534.5 Td (109     const task = db.getTask\(taskId\);) Tj ET
+BT /F2 7.5 Tf 45 518 Td (110     if \(!task\) {) Tj ET
+BT /F2 7.5 Tf 45 501.5 Td (111       throw new Error\(`Task '${taskId}' was not found.`\);) Tj ET
+BT /F2 7.5 Tf 45 485 Td (112     }) Tj ET
+BT /F2 7.5 Tf 45 468.5 Td (113 ) Tj ET
+BT /F2 7.5 Tf 45 452 Td (114     const previousStatus = task.status;) Tj ET
+BT /F2 7.5 Tf 45 435.5 Td (115     if \(previousStatus === targetColumn\) {) Tj ET
+BT /F2 7.5 Tf 45 419 Td (116       return { task, transitioned: false };) Tj ET
+BT /F2 7.5 Tf 45 402.5 Td (117     }) Tj ET
+BT /F2 7.5 Tf 45 386 Td (118 ) Tj ET
+BT /F2 7.5 Tf 45 369.5 Td (119     const updatedTask = db.updateTask\(taskId, { status: targetColumn }\);) Tj ET
+BT /F2 7.5 Tf 45 353 Td (120 ) Tj ET
+BT /F2 7.5 Tf 45 336.5 Td (121     // Broadcast to other viewers of this workspace and write the audit log \(REQ-5.3 & REQ-8.3\)) Tj ET
+BT /F2 7.5 Tf 45 320 Td (122     realtimeService.publish\(task.workspace_id, 'task.moved', {) Tj ET
+BT /F2 7.5 Tf 45 303.5 Td (123       task_id: taskId,) Tj ET
+BT /F2 7.5 Tf 45 287 Td (124       from: previousStatus,) Tj ET
+BT /F2 7.5 Tf 45 270.5 Td (125       to: targetColumn,) Tj ET
+BT /F2 7.5 Tf 45 254 Td (126       actor_id: actorId,) Tj ET
+BT /F2 7.5 Tf 45 237.5 Td (127       task: updatedTask) Tj ET
+BT /F2 7.5 Tf 45 221 Td (128     }\);) Tj ET
+BT /F2 7.5 Tf 45 204.5 Td (129     db.logAuditEvent\({) Tj ET
+BT /F2 7.5 Tf 45 188 Td (130       workspace_id: task.workspace_id,) Tj ET
+BT /F2 7.5 Tf 45 171.5 Td (131       actor_id: actorId,) Tj ET
+BT /F2 7.5 Tf 45 155 Td (132       action: 'KANBAN_STATUS_TRANSITION',) Tj ET
+BT /F2 7.5 Tf 45 138.5 Td (133       target_entity: 'TASK',) Tj ET
+BT /F2 7.5 Tf 45 122 Td (134       target_id: taskId,) Tj ET
+BT /F2 7.5 Tf 45 105.5 Td (135       details: { from: previousStatus, to: targetColumn }) Tj ET
+BT /F2 7.5 Tf 45 89 Td (136     }\);) Tj ET
+BT /F2 7.5 Tf 45 72.5 Td (137 ) Tj ET
+BT /F1 8 Tf 510 25 Td (5) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 16 0 R >>
+endobj
+16 0 obj
+<< /Length 3328 >>
+stream
+BT /F2 7.5 Tf 45 790 Td (138     // Notify assignees about status change) Tj ET
+BT /F2 7.5 Tf 45 773.5 Td (139     \(task.assignees || []\).forEach\(assigneeId => {) Tj ET
+BT /F2 7.5 Tf 45 757 Td (140       if \(assigneeId !== actorId\) {) Tj ET
+BT /F2 7.5 Tf 45 740.5 Td (141         db.createNotification\({) Tj ET
+BT /F2 7.5 Tf 45 724 Td (142           user_id: assigneeId,) Tj ET
+BT /F2 7.5 Tf 45 707.5 Td (143           title: 'Task Status Updated',) Tj ET
+BT /F2 7.5 Tf 45 691 Td (144           message: `Task '${task.title}' moved from '${previousStatus}' to '${targetColumn}'.`,) Tj ET
+BT /F2 7.5 Tf 45 674.5 Td (145           type: 'STATUS_CHANGE',) Tj ET
+BT /F2 7.5 Tf 45 658 Td (146           target_entity_id: taskId) Tj ET
+BT /F2 7.5 Tf 45 641.5 Td (147         }\);) Tj ET
+BT /F2 7.5 Tf 45 625 Td (148       }) Tj ET
+BT /F2 7.5 Tf 45 608.5 Td (149     }\);) Tj ET
+BT /F2 7.5 Tf 45 592 Td (150 ) Tj ET
+BT /F2 7.5 Tf 45 575.5 Td (151     return {) Tj ET
+BT /F2 7.5 Tf 45 559 Td (152       task: updatedTask,) Tj ET
+BT /F2 7.5 Tf 45 542.5 Td (153       transitioned: true,) Tj ET
+BT /F2 7.5 Tf 45 526 Td (154       previous_status: previousStatus,) Tj ET
+BT /F1 16 Tf 45 494.5 Td (Your part C: assignment) Tj ET
+BT /F1 10 Tf 45 464.5 Td (Assignment answers who is responsible for a task. POST /api/v1/tasks/:taskId/assign) Tj ET
+BT /F1 10 Tf 45 450.5 Td (accepts {"userIds":["user-1","user-2"]}. The router checks the actor's write access;) Tj ET
+BT /F1 10 Tf 45 436.5 Td (assignCollaborators checks the task exists and the IDs are supplied as an array.) Tj ET
+BT /F1 10 Tf 45 412.5 Td (For each ID, rbacService.isMember checks membership of that task's workspace. If an) Tj ET
+BT /F1 10 Tf 45 398.5 Td (outsider is included, the service throws before updating. On success it replaces the) Tj ET
+BT /F1 10 Tf 45 384.5 Td (task's assignee array, creates assignment notifications and writes an audit entry.) Tj ET
+BT /F1 10 Tf 45 360.5 Td (Important: the supplied list replaces existing assignees; send all people who should) Tj ET
+BT /F1 10 Tf 45 346.5 Td (remain assigned. An empty array clears the assignment. The backend route exists; verify) Tj ET
+BT /F1 10 Tf 45 332.5 Td (whether the current UI exposes an assignment control before promising an in-browser demo.) Tj ET
+BT /F1 12 Tf 45 308.5 Td (Actual code: assignment) Tj ET
+BT /F2 7.5 Tf 45 282.5 Td ( 20   assignCollaborators\(taskId, userIds, actorId\) {) Tj ET
+BT /F2 7.5 Tf 45 266 Td ( 21     const task = db.getTask\(taskId\);) Tj ET
+BT /F2 7.5 Tf 45 249.5 Td ( 22     if \(!task\) {) Tj ET
+BT /F2 7.5 Tf 45 233 Td ( 23       throw new Error\(`Task '${taskId}' was not found.`\);) Tj ET
+BT /F2 7.5 Tf 45 216.5 Td ( 24     }) Tj ET
+BT /F2 7.5 Tf 45 200 Td ( 25 ) Tj ET
+BT /F2 7.5 Tf 45 183.5 Td ( 26     if \(!Array.isArray\(userIds\)\) {) Tj ET
+BT /F2 7.5 Tf 45 167 Td ( 27       throw new Error\('userIds must be an array.'\);) Tj ET
+BT /F2 7.5 Tf 45 150.5 Td ( 28     }) Tj ET
+BT /F2 7.5 Tf 45 134 Td ( 29 ) Tj ET
+BT /F2 7.5 Tf 45 117.5 Td ( 30     // Enforce Business Rule 1) Tj ET
+BT /F2 7.5 Tf 45 101 Td ( 31     for \(const uid of userIds\) {) Tj ET
+BT /F2 7.5 Tf 45 84.5 Td ( 32       const isMember = rbacService.isMember\(task.workspace_id, uid\);) Tj ET
+BT /F2 7.5 Tf 45 68 Td ( 33       if \(!isMember\) {) Tj ET
+BT /F1 8 Tf 510 25 Td (6) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 18 0 R >>
+endobj
+18 0 obj
+<< /Length 3288 >>
+stream
+BT /F2 7.5 Tf 45 790 Td ( 34         throw new Error\(`Business Rule 1 Violation: User '${uid}' is not a member of workspace) Tj ET
+BT /F2 7.5 Tf 45 778.5 Td ('${task.workspace_id}'.`\);) Tj ET
+BT /F2 7.5 Tf 45 762 Td ( 35       }) Tj ET
+BT /F2 7.5 Tf 45 745.5 Td ( 36     }) Tj ET
+BT /F2 7.5 Tf 45 729 Td ( 37 ) Tj ET
+BT /F2 7.5 Tf 45 712.5 Td ( 38     const updated = db.updateTask\(taskId, { assignees: userIds }\);) Tj ET
+BT /F2 7.5 Tf 45 696 Td ( 39 ) Tj ET
+BT /F2 7.5 Tf 45 679.5 Td ( 40     // Trigger Notification for assigned users) Tj ET
+BT /F2 7.5 Tf 45 663 Td ( 41     for \(const uid of userIds\) {) Tj ET
+BT /F2 7.5 Tf 45 646.5 Td ( 42       db.createNotification\({) Tj ET
+BT /F2 7.5 Tf 45 630 Td ( 43         user_id: uid,) Tj ET
+BT /F2 7.5 Tf 45 613.5 Td ( 44         title: 'Task Assigned',) Tj ET
+BT /F2 7.5 Tf 45 597 Td ( 45         message: `You were assigned to task: ${task.title}`,) Tj ET
+BT /F2 7.5 Tf 45 580.5 Td ( 46         type: 'ASSIGNMENT',) Tj ET
+BT /F2 7.5 Tf 45 564 Td ( 47         target_entity_id: taskId) Tj ET
+BT /F2 7.5 Tf 45 547.5 Td ( 48       }\);) Tj ET
+BT /F2 7.5 Tf 45 531 Td ( 49     }) Tj ET
+BT /F2 7.5 Tf 45 514.5 Td ( 50 ) Tj ET
+BT /F2 7.5 Tf 45 498 Td ( 51     // Trigger Audit Log) Tj ET
+BT /F2 7.5 Tf 45 481.5 Td ( 52     db.logAuditEvent\({) Tj ET
+BT /F2 7.5 Tf 45 465 Td ( 53       workspace_id: task.workspace_id,) Tj ET
+BT /F2 7.5 Tf 45 448.5 Td ( 54       actor_id: actorId,) Tj ET
+BT /F2 7.5 Tf 45 432 Td ( 55       action: 'COLLABORATOR_ASSIGNED',) Tj ET
+BT /F2 7.5 Tf 45 415.5 Td ( 56       target_entity: 'TASK',) Tj ET
+BT /F2 7.5 Tf 45 399 Td ( 57       target_id: taskId,) Tj ET
+BT /F2 7.5 Tf 45 382.5 Td ( 58       details: { assignees: userIds }) Tj ET
+BT /F2 7.5 Tf 45 366 Td ( 59     }\);) Tj ET
+BT /F2 7.5 Tf 45 349.5 Td ( 60 ) Tj ET
+BT /F2 7.5 Tf 45 333 Td ( 61     return updated;) Tj ET
+BT /F1 16 Tf 45 301.5 Td (Your part D: keyword search and tags) Tj ET
+BT /F1 10 Tf 45 271.5 Td (The page requests GET /api/v1/search/tasks with workspace_id, q, tags and sort parameters.) Tj ET
+BT /F1 10 Tf 45 257.5 Td (The route verifies workspace membership. The frontend fetches matching IDs and filters the) Tj ET
+BT /F1 10 Tf 45 243.5 Td (board cards; sorting is applied inside each status column. Search inputs are debounced for) Tj ET
+BT /F1 10 Tf 45 229.5 Td (300 ms.) Tj ET
+BT /F1 12 Tf 45 205.5 Td (Keyword search) Tj ET
+BT /F1 10 Tf 45 179.5 Td (queryTasks scans tasks and uses lowercase includes\(\) against title, description and tag) Tj ET
+BT /F1 10 Tf 45 165.5 Td (labels. This is case-insensitive substring search in JavaScript, not an indexed database) Tj ET
+BT /F1 10 Tf 45 151.5 Td (full-text search engine. Searching 'login' finds 'Login page'.) Tj ET
+BT /F1 12 Tf 45 127.5 Td (Composite filters) Tj ET
+BT /F1 10 Tf 45 101.5 Td (Tags are comma-separated and every entered filter must match. The tags field also) Tj ET
+BT /F1 10 Tf 45 87.5 Td (recognises priority values High, Medium and Low, and workflow labels such as review / in) Tj ET
+BT /F1 10 Tf 45 73.5 Td (review, to do, in progress and done. Example: high, review matches a High-priority task in) Tj ET
+BT /F1 10 Tf 45 59.5 Td (Review. Actual task tags also match. Keyword and tag criteria combine with AND. Task) Tj ET
+BT /F1 8 Tf 510 25 Td (7) Tj ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 20 0 R >>
+endobj
+20 0 obj
+<< /Length 3631 >>
+stream
+BT /F1 10 Tf 45 790 Td (creation/editing accepts comma-separated task tags.) Tj ET
+BT /F1 10 Tf 45 766 Td (The backend also accepts priority, status, assignee and due-date filters, but not every) Tj ET
+BT /F1 10 Tf 45 752 Td (backend filter has a corresponding UI control. Date filters exclude undated tasks. Avoid) Tj ET
+BT /F1 10 Tf 45 738 Td (confusing the separate workspace coloured-tag catalog with tag strings stored on tasks.) Tj ET
+BT /F1 12 Tf 45 714 Td (Actual code: search) Tj ET
+BT /F2 7.5 Tf 45 688 Td ( 45 ) Tj ET
+BT /F2 7.5 Tf 45 671.5 Td ( 46     // 1. Initial filtered set) Tj ET
+BT /F2 7.5 Tf 45 655 Td ( 47     let results = db.findTasks\(task => {) Tj ET
+BT /F2 7.5 Tf 45 638.5 Td ( 48       // Workspace boundary) Tj ET
+BT /F2 7.5 Tf 45 622 Td ( 49       if \(workspaceId && task.workspace_id !== workspaceId\) return false;) Tj ET
+BT /F2 7.5 Tf 45 605.5 Td ( 50 ) Tj ET
+BT /F2 7.5 Tf 45 589 Td ( 51       // REQ-6.1: Full-Text Search across title, description, and tag labels) Tj ET
+BT /F2 7.5 Tf 45 572.5 Td ( 52       if \(queryText && queryText.trim\(\)\) {) Tj ET
+BT /F2 7.5 Tf 45 556 Td ( 53         const needle = queryText.toLowerCase\(\).trim\(\);) Tj ET
+BT /F2 7.5 Tf 45 539.5 Td ( 54         const titleMatch = task.title.toLowerCase\(\).includes\(needle\);) Tj ET
+BT /F2 7.5 Tf 45 523 Td ( 55         const descMatch = \(task.description || ''\).toLowerCase\(\).includes\(needle\);) Tj ET
+BT /F2 7.5 Tf 45 506.5 Td ( 56         const tagMatch = \(task.tags || []\).some\(t => t.toLowerCase\(\).includes\(needle\)\);) Tj ET
+BT /F2 7.5 Tf 45 490 Td ( 57 ) Tj ET
+BT /F2 7.5 Tf 45 473.5 Td ( 58         if \(!titleMatch && !descMatch && !tagMatch\) {) Tj ET
+BT /F2 7.5 Tf 45 457 Td ( 59           return false;) Tj ET
+BT /F2 7.5 Tf 45 440.5 Td ( 60         }) Tj ET
+BT /F2 7.5 Tf 45 424 Td ( 61       }) Tj ET
+BT /F2 7.5 Tf 45 407.5 Td ( 62 ) Tj ET
+BT /F2 7.5 Tf 45 391 Td ( 63       // REQ-6.2: Multi-Attribute Filtering) Tj ET
+BT /F2 7.5 Tf 45 374.5 Td ( 64       if \(priority && task.priority !== priority\) return false;) Tj ET
+BT /F2 7.5 Tf 45 358 Td ( 65       if \(status && task.status !== status\) return false;) Tj ET
+BT /F2 7.5 Tf 45 341.5 Td ( 66       if \(assigneeId\) {) Tj ET
+BT /F2 7.5 Tf 45 325 Td ( 67         const assignees = task.assignees || [];) Tj ET
+BT /F2 7.5 Tf 45 308.5 Td ( 68         if \(!assignees.includes\(assigneeId\)\) return false;) Tj ET
+BT /F2 7.5 Tf 45 292 Td ( 69       }) Tj ET
+BT /F2 7.5 Tf 45 275.5 Td ( 70 ) Tj ET
+BT /F2 7.5 Tf 45 259 Td ( 71       // Date range filtering: tasks with no due date never match a range) Tj ET
+BT /F2 7.5 Tf 45 242.5 Td ( 72       if \(startDate || endDate\) {) Tj ET
+BT /F2 7.5 Tf 45 226 Td ( 73         if \(!task.due_date\) return false;) Tj ET
+BT /F2 7.5 Tf 45 209.5 Td ( 74         const due = new Date\(task.due_date\);) Tj ET
+BT /F2 7.5 Tf 45 193 Td ( 75         if \(startDate && due < new Date\(startDate\)\) return false;) Tj ET
+BT /F2 7.5 Tf 45 176.5 Td ( 76         if \(endDate && due > new Date\(endDate\)\) return false;) Tj ET
+BT /F2 7.5 Tf 45 160 Td ( 77       }) Tj ET
+BT /F2 7.5 Tf 45 143.5 Td ( 78 ) Tj ET
+BT /F2 7.5 Tf 45 127 Td ( 79       // Each filter can match a task tag, a priority, or a workflow status.) Tj ET
+BT /F2 7.5 Tf 45 110.5 Td ( 80       if \(Array.isArray\(tags\) && tags.length > 0\) {) Tj ET
+BT /F2 7.5 Tf 45 94 Td ( 81         const taskTags = \(task.tags || []\).map\(t => t.toLowerCase\(\)\);) Tj ET
+BT /F2 7.5 Tf 45 77.5 Td ( 82         const statusAliases = {) Tj ET
+BT /F2 7.5 Tf 45 61 Td ( 83           'to do': 'To-Do', 'todo': 'To-Do',) Tj ET
+BT /F1 8 Tf 510 25 Td (8) Tj ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 22 0 R >>
+endobj
+22 0 obj
+<< /Length 3471 >>
+stream
+BT /F2 7.5 Tf 45 785 Td ( 84           'in progress': 'In-Progress', 'progress': 'In-Progress',) Tj ET
+BT /F2 7.5 Tf 45 768.5 Td ( 85           'review': 'Review', 'in review': 'Review',) Tj ET
+BT /F2 7.5 Tf 45 752 Td ( 86           'done': 'Done') Tj ET
+BT /F2 7.5 Tf 45 735.5 Td ( 87         };) Tj ET
+BT /F2 7.5 Tf 45 719 Td ( 88         const hasAllTags = tags.every\(t => {) Tj ET
+BT /F2 7.5 Tf 45 702.5 Td ( 89           const label = t.trim\(\).toLowerCase\(\);) Tj ET
+BT /F2 7.5 Tf 45 686 Td ( 90           const normalized = label.replace\(/[-_]+/g, ' '\).replace\(/\\s+/g, ' '\);) Tj ET
+BT /F2 7.5 Tf 45 669.5 Td ( 91           const status = statusAliases[normalized];) Tj ET
+BT /F2 7.5 Tf 45 653 Td ( 92           return taskTags.includes\(label\) ||) Tj ET
+BT /F2 7.5 Tf 45 636.5 Td ( 93             \(task.priority || ''\).toLowerCase\(\) === label ||) Tj ET
+BT /F2 7.5 Tf 45 620 Td ( 94             \(status && task.status === status\);) Tj ET
+BT /F2 7.5 Tf 45 603.5 Td ( 95         }\);) Tj ET
+BT /F2 7.5 Tf 45 587 Td ( 96         if \(!hasAllTags\) return false;) Tj ET
+BT /F2 7.5 Tf 45 570.5 Td ( 97       }) Tj ET
+BT /F2 7.5 Tf 45 554 Td ( 98 ) Tj ET
+BT /F2 7.5 Tf 45 537.5 Td ( 99       return true;) Tj ET
+BT /F2 7.5 Tf 45 521 Td (100     }, includeArchived\);) Tj ET
+BT /F2 7.5 Tf 45 504.5 Td (101 ) Tj ET
+BT /F2 7.5 Tf 45 488 Td (102     // REQ-6.3: Sorting by due date or priority level) Tj ET
+BT /F2 7.5 Tf 45 471.5 Td (103     results.sort\(\(a, b\) => {) Tj ET
+BT /F2 7.5 Tf 45 455 Td (104       let comparison = 0;) Tj ET
+BT /F1 16 Tf 45 423.5 Td (Your part E: sorting and routes) Tj ET
+BT /F1 10 Tf 45 393.5 Td (queryTasks sorts by created_at, due_date, priority or title. High, Medium and Low map to) Tj ET
+BT /F1 10 Tf 45 379.5 Td (3, 2 and 1. Ascending keeps the comparator direction; descending reverses it. The default) Tj ET
+BT /F1 10 Tf 45 365.5 Td (is creation date descending. No due date is put last in either direction. Search returns) Tj ET
+BT /F1 10 Tf 45 351.5 Td (total, execution_time_ms and matching data.) Tj ET
+BT /F1 12 Tf 45 327.5 Td (Actual code: sorting) Tj ET
+BT /F2 7.5 Tf 45 301.5 Td (106       if \(sortBy === 'priority'\) {) Tj ET
+BT /F2 7.5 Tf 45 285 Td (107         const valA = PRIORITY_ORDER[a.priority] || 0;) Tj ET
+BT /F2 7.5 Tf 45 268.5 Td (108         const valB = PRIORITY_ORDER[b.priority] || 0;) Tj ET
+BT /F2 7.5 Tf 45 252 Td (109         comparison = valA - valB;) Tj ET
+BT /F2 7.5 Tf 45 235.5 Td (110       } else if \(sortBy === 'due_date'\) {) Tj ET
+BT /F2 7.5 Tf 45 219 Td (111         const timeA = a.due_date ? new Date\(a.due_date\).getTime\(\) : \(sortOrder === 'asc' ?) Tj ET
+BT /F2 7.5 Tf 45 207.5 Td (Infinity : -Infinity\);) Tj ET
+BT /F2 7.5 Tf 45 191 Td (112         const timeB = b.due_date ? new Date\(b.due_date\).getTime\(\) : \(sortOrder === 'asc' ?) Tj ET
+BT /F2 7.5 Tf 45 179.5 Td (Infinity : -Infinity\);) Tj ET
+BT /F2 7.5 Tf 45 163 Td (113         comparison = timeA - timeB;) Tj ET
+BT /F2 7.5 Tf 45 146.5 Td (114       } else if \(sortBy === 'title'\) {) Tj ET
+BT /F2 7.5 Tf 45 130 Td (115         comparison = a.title.localeCompare\(b.title\);) Tj ET
+BT /F2 7.5 Tf 45 113.5 Td (116       } else {) Tj ET
+BT /F2 7.5 Tf 45 97 Td (117         // Default created_at) Tj ET
+BT /F2 7.5 Tf 45 80.5 Td (118         comparison = new Date\(a.created_at\).getTime\(\) - new Date\(b.created_at\).getTime\(\);) Tj ET
+BT /F2 7.5 Tf 45 64 Td (119       }) Tj ET
+BT /F1 8 Tf 510 25 Td (9) Tj ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 24 0 R >>
+endobj
+24 0 obj
+<< /Length 3547 >>
+stream
+BT /F2 7.5 Tf 45 790 Td (120 ) Tj ET
+BT /F2 7.5 Tf 45 773.5 Td (121       return sortOrder === 'desc' ? -comparison : comparison;) Tj ET
+BT /F2 7.5 Tf 45 757 Td (122     }\);) Tj ET
+BT /F2 7.5 Tf 45 740.5 Td (123 ) Tj ET
+BT /F2 7.5 Tf 45 724 Td (124     const executionTimeMs = Date.now\(\) - startTime;) Tj ET
+BT /F2 7.5 Tf 45 707.5 Td (125 ) Tj ET
+BT /F2 7.5 Tf 45 691 Td (126     return {) Tj ET
+BT /F2 7.5 Tf 45 674.5 Td (127       total: results.length,) Tj ET
+BT /F2 7.5 Tf 45 658 Td (128       execution_time_ms: executionTimeMs, // Verifies < 100ms requirement per REQ-6.1 stimulus) Tj ET
+BT /F2 7.5 Tf 45 641.5 Td (129       data: results) Tj ET
+BT /F2 7.5 Tf 45 625 Td (130     };) Tj ET
+BT /F2 7.5 Tf 45 608.5 Td (131   }) Tj ET
+BT /F2 7.5 Tf 45 592 Td (132 ) Tj ET
+BT /F2 7.5 Tf 45 575.5 Td (133   /**) Tj ET
+BT /F2 7.5 Tf 45 559 Td (134    * REQ-6.3: Create and manage colored tags) Tj ET
+BT /F2 7.5 Tf 45 542.5 Td (135    */) Tj ET
+BT /F2 7.5 Tf 45 526 Td (136   createTag\({ workspaceId, name, color = '#3b82f6' }\) {) Tj ET
+BT /F2 7.5 Tf 45 509.5 Td (137     if \(typeof name !== 'string' || !name.trim\(\)\) {) Tj ET
+BT /F2 7.5 Tf 45 493 Td (138       throw validationError\('Tag name is required.'\);) Tj ET
+BT /F2 7.5 Tf 45 476.5 Td (139     }) Tj ET
+BT /F1 12 Tf 45 455 Td (Actual code: route to service) Tj ET
+BT /F2 7.5 Tf 45 429 Td (219 ) Tj ET
+BT /F2 7.5 Tf 45 412.5 Td (220       // 4. Kanban & Workflow Routes \(Feature 5\)) Tj ET
+BT /F2 7.5 Tf 45 396 Td (221       const wsKanbanMatch = pathname.match\(/^\\/api\\/v1\\/workspaces\\/\([^/]+\)\\/kanban$/\);) Tj ET
+BT /F2 7.5 Tf 45 379.5 Td (222       if \(method === 'GET' && wsKanbanMatch\) {) Tj ET
+BT /F2 7.5 Tf 45 363 Td (223         if \(!requireWorkspaceAccess\(req, res, wsKanbanMatch[1]\)\) return;) Tj ET
+BT /F2 7.5 Tf 45 346.5 Td (224         const board = taskDragDrop.getKanbanBoard\(wsKanbanMatch[1]\);) Tj ET
+BT /F2 7.5 Tf 45 330 Td (225         return res.status\(200\).json\({ success: true, data: board }\);) Tj ET
+BT /F2 7.5 Tf 45 313.5 Td (226       }) Tj ET
+BT /F2 7.5 Tf 45 297 Td (227       const wsEventsMatch = pathname.match\(/^\\/api\\/v1\\/workspaces\\/\([^/]+\)\\/events$/\);) Tj ET
+BT /F2 7.5 Tf 45 280.5 Td (228       if \(method === 'GET' && wsEventsMatch\) {) Tj ET
+BT /F2 7.5 Tf 45 264 Td (229         if \(!requireWorkspaceAccess\(req, res, wsEventsMatch[1]\)\) return;) Tj ET
+BT /F2 7.5 Tf 45 247.5 Td (230         return realtimeService.subscribe\(wsEventsMatch[1], req, res\);) Tj ET
+BT /F2 7.5 Tf 45 231 Td (231       }) Tj ET
+BT /F2 7.5 Tf 45 214.5 Td (232       const taskMoveMatch = pathname.match\(/^\\/api\\/v1\\/tasks\\/\([^/]+\)\\/move$/\);) Tj ET
+BT /F2 7.5 Tf 45 198 Td (233       if \(method === 'POST' && taskMoveMatch\) {) Tj ET
+BT /F2 7.5 Tf 45 181.5 Td (234         const taskId = taskMoveMatch[1];) Tj ET
+BT /F2 7.5 Tf 45 165 Td (235         if \(!requireTaskAccess\(req, res, taskId, true\)\) return;) Tj ET
+BT /F2 7.5 Tf 45 148.5 Td (236         const { targetColumn } = req.body;) Tj ET
+BT /F2 7.5 Tf 45 132 Td (237         const result = taskDragDrop.moveCard\(taskId, targetColumn, req.user.userId\);) Tj ET
+BT /F2 7.5 Tf 45 115.5 Td (238         return res.status\(200\).json\({ success: true, data: result }\);) Tj ET
+BT /F2 7.5 Tf 45 99 Td (239       }) Tj ET
+BT /F2 7.5 Tf 45 82.5 Td (240       const taskAssignMatch = pathname.match\(/^\\/api\\/v1\\/tasks\\/\([^/]+\)\\/assign$/\);) Tj ET
+BT /F2 7.5 Tf 45 66 Td (241       if \(method === 'POST' && taskAssignMatch\) {) Tj ET
+BT /F1 8 Tf 510 25 Td (10) Tj ET
+endstream
+endobj
+25 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 26 0 R >>
+endobj
+26 0 obj
+<< /Length 4092 >>
+stream
+BT /F2 7.5 Tf 45 790 Td (242         const taskId = taskAssignMatch[1];) Tj ET
+BT /F2 7.5 Tf 45 773.5 Td (243         if \(!requireTaskAccess\(req, res, taskId, true\)\) return;) Tj ET
+BT /F2 7.5 Tf 45 757 Td (244         const { userIds } = req.body;) Tj ET
+BT /F2 7.5 Tf 45 740.5 Td (245         const result = taskDragDrop.assignCollaborators\(taskId, userIds, req.user.userId\);) Tj ET
+BT /F2 7.5 Tf 45 724 Td (246         return res.status\(200\).json\({ success: true, data: result }\);) Tj ET
+BT /F2 7.5 Tf 45 707.5 Td (247       }) Tj ET
+BT /F2 7.5 Tf 45 691 Td (248 ) Tj ET
+BT /F2 7.5 Tf 45 674.5 Td (249       // 5. Search & Filtering Routes \(Feature 6\)) Tj ET
+BT /F2 7.5 Tf 45 658 Td (250       if \(method === 'GET' && pathname === '/api/v1/search/tasks'\) {) Tj ET
+BT /F2 7.5 Tf 45 641.5 Td (251         if \(!req.query.workspace_id\) {) Tj ET
+BT /F2 7.5 Tf 45 625 Td (252           return res.status\(400\).json\({ success: false, error: 'Validation Error', message:) Tj ET
+BT /F2 7.5 Tf 45 613.5 Td ('workspace_id is required.' }\);) Tj ET
+BT /F2 7.5 Tf 45 597 Td (253         }) Tj ET
+BT /F2 7.5 Tf 45 580.5 Td (254         if \(!requireWorkspaceAccess\(req, res, req.query.workspace_id\)\) return;) Tj ET
+BT /F2 7.5 Tf 45 564 Td (255         const results = searchService.queryTasks\({) Tj ET
+BT /F2 7.5 Tf 45 547.5 Td (256           workspaceId: req.query.workspace_id,) Tj ET
+BT /F2 7.5 Tf 45 531 Td (257           queryText: req.query.q,) Tj ET
+BT /F2 7.5 Tf 45 514.5 Td (258           priority: req.query.priority,) Tj ET
+BT /F2 7.5 Tf 45 498 Td (259           status: req.query.status,) Tj ET
+BT /F2 7.5 Tf 45 481.5 Td (260           assigneeId: req.query.assignee_id,) Tj ET
+BT /F2 7.5 Tf 45 465 Td (261           startDate: req.query.start_date,) Tj ET
+BT /F2 7.5 Tf 45 448.5 Td (262           endDate: req.query.end_date,) Tj ET
+BT /F2 7.5 Tf 45 432 Td (263           tags: req.query.tags ? req.query.tags.split\(','\) : undefined,) Tj ET
+BT /F2 7.5 Tf 45 415.5 Td (264           sortBy: req.query.sort_by,) Tj ET
+BT /F2 7.5 Tf 45 399 Td (265           sortOrder: req.query.sort_order) Tj ET
+BT /F2 7.5 Tf 45 382.5 Td (266         }\);) Tj ET
+BT /F2 7.5 Tf 45 366 Td (267         return res.status\(200\).json\({ success: true, ...results }\);) Tj ET
+BT /F2 7.5 Tf 45 349.5 Td (268       }) Tj ET
+BT /F2 7.5 Tf 45 333 Td (269 ) Tj ET
+BT /F1 10 Tf 45 311.5 Td (In the route, a regular expression captures the ID from the URL. req.query holds URL query) Tj ET
+BT /F1 10 Tf 45 297.5 Td (parameters, req.body holds parsed JSON, and req.user comes from the verified JWT. For a) Tj ET
+BT /F1 10 Tf 45 283.5 Td (search the workspace_id is required, then access is checked before results are returned.) Tj ET
+BT /F1 16 Tf 45 249.5 Td (Analytics and report exports) Tj ET
+BT /F1 10 Tf 45 219.5 Td (AnalyticsService computes total, completed, overdue, completion rate and team velocity.) Tj ET
+BT /F1 10 Tf 45 205.5 Td (Velocity uses tasks currently Done whose updated_at falls inside the selected window:) Tj ET
+BT /F1 10 Tf 45 191.5 Td (\(count / sprintDays\) * 7, rounded to one decimal. It is an estimate, not a recorded) Tj ET
+BT /F1 10 Tf 45 177.5 Td (history of completion events; editing a completed task can change updated_at.) Tj ET
+BT /F1 10 Tf 45 153.5 Td (The analytics page displays status distribution, member workload and a completion bar,) Tj ET
+BT /F1 10 Tf 45 139.5 Td (plus the calculated tasks-per-week figure. Workload counts assigned and completed tasks) Tj ET
+BT /F1 10 Tf 45 125.5 Td (per member. It uses the distribution and KPI endpoints.) Tj ET
+BT /F1 10 Tf 45 101.5 Td (ReportExporter produces CSV and PDF. Completed tasks are displayed as 100% in both) Tj ET
+BT /F1 10 Tf 45 87.5 Td (exports; other tasks use their stored progress. PDF uses exportToDocumentSummary and a) Tj ET
+BT /F1 10 Tf 45 73.5 Td (simple built-in PDF writer. CSV includes archived tasks; document summary/PDF uses active) Tj ET
+BT /F1 10 Tf 45 59.5 Td (tasks. Non-Latin characters may not render correctly in the PDF's built-in font.) Tj ET
+BT /F1 8 Tf 510 25 Td (11) Tj ET
+endstream
+endobj
+27 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 28 0 R >>
+endobj
+28 0 obj
+<< /Length 3222 >>
+stream
+BT /F1 16 Tf 45 770 Td (Notifications, audit and timing) Tj ET
+BT /F1 10 Tf 45 740 Td (The deadline scheduler checks open tasks due within the next 24 hours \(including overdue) Tj ET
+BT /F1 10 Tf 45 726 Td (tasks\) and creates a notification for each assignee, suppressing repeats for 24 hours. It) Tj ET
+BT /F1 10 Tf 45 712 Td (runs at startup and then hourly by default. The current Kanban interface polls) Tj ET
+BT /F1 10 Tf 45 698 Td (notifications and workspace audit activity every 10 seconds; users can mark their) Tj ET
+BT /F1 10 Tf 45 684 Td (notifications read. The scheduler is periodic, so this is not an exact deadline-time push.) Tj ET
+BT /F1 10 Tf 45 660 Td (Audit records contain workspace, actor, action, target, details and timestamp. Entries are) Tj ET
+BT /F1 10 Tf 45 646 Td (frozen in memory and there is no normal audit editing API, but data is stored in a local) Tj ET
+BT /F1 10 Tf 45 632 Td (JSON file that can be modified by someone with file access. It is not a tamper-proof) Tj ET
+BT /F1 10 Tf 45 618 Td (immutable audit system.) Tj ET
+BT /F1 10 Tf 45 594 Td (Backend task-move SSE is separate from feed polling: realtimeService keeps workspace) Tj ET
+BT /F1 10 Tf 45 580 Td (subscriber connections and publishes task.moved events. Open streams are checked for) Tj ET
+BT /F1 10 Tf 45 566 Td (workspace access, and can be disconnected on membership removal.) Tj ET
+BT /F1 16 Tf 45 532 Td (API reference) Tj ET
+BT /F1 10 Tf 45 502 Td (| Endpoint | Use) Tj ET
+BT /F1 10 Tf 45 478 Td (| POST /api/v1/auth/register, /login | Account and authentication) Tj ET
+BT /F1 10 Tf 45 454 Td (| GET / POST /api/v1/workspaces | List / create workspaces) Tj ET
+BT /F1 10 Tf 45 430 Td (| GET /api/v1/workspaces/:id/kanban | Board grouped by status) Tj ET
+BT /F1 10 Tf 45 406 Td (| POST /api/v1/tasks/:id/move | Change status) Tj ET
+BT /F1 10 Tf 45 382 Td (| POST /api/v1/tasks/:id/assign | Replace assignee list) Tj ET
+BT /F1 10 Tf 45 358 Td (| GET /api/v1/search/tasks | Keyword, tags, filters and sorting) Tj ET
+BT /F1 10 Tf 45 334 Td (| GET / POST /api/v1/workspaces/:id/tags | List / create coloured tags) Tj ET
+BT /F1 10 Tf 45 310 Td (| GET /api/v1/workspaces/:id/analytics/kpi | KPIs and velocity) Tj ET
+BT /F1 10 Tf 45 286 Td (| GET /api/v1/workspaces/:id/analytics/distribution | Status and workload charts) Tj ET
+BT /F1 10 Tf 45 262 Td (| GET /api/v1/workspaces/:id/reports/csv or /pdf | Download reports) Tj ET
+BT /F1 10 Tf 45 238 Td (| GET /api/v1/users/:id/notifications | Own notifications) Tj ET
+BT /F1 10 Tf 45 214 Td (| POST /api/v1/notifications/:id/read | Mark own notification read) Tj ET
+BT /F1 10 Tf 45 190 Td (| GET /api/v1/workspaces/:id/audit-logs | Workspace activity) Tj ET
+BT /F1 10 Tf 45 166 Td (| GET /api/v1/workspaces/:id/events | Workspace event stream) Tj ET
+BT /F1 10 Tf 45 142 Td (Protected routes generally require a Bearer token. See src/app.js for remaining task,) Tj ET
+BT /F1 10 Tf 45 128 Td (subtask, attachment, invitation and workspace endpoints.) Tj ET
+BT /F1 16 Tf 45 94 Td (Viva preparation and limitations) Tj ET
+BT /F1 10 Tf 45 64 Td (What did your assigned feature set cover? Kanban task grouping and movement, collaborator) Tj ET
+BT /F1 8 Tf 510 25 Td (12) Tj ET
+endstream
+endobj
+29 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 30 0 R >>
+endobj
+30 0 obj
+<< /Length 1613 >>
+stream
+BT /F1 10 Tf 45 790 Td (assignment, searching, filtering, sorting and tags.) Tj ET
+BT /F1 10 Tf 45 766 Td (How does multi-tag filtering work? Every supplied filter must match a task tag or a) Tj ET
+BT /F1 10 Tf 45 752 Td (recognised priority/status. Keyword criteria are also applied.) Tj ET
+BT /F1 10 Tf 45 728 Td (How do you prevent assigning an outsider? Check each requested ID with) Tj ET
+BT /F1 10 Tf 45 714 Td (rbacService.isMember before updating the task.) Tj ET
+BT /F1 10 Tf 45 690 Td (What happens on a move? Validate status and access, update task, publish the move event,) Tj ET
+BT /F1 10 Tf 45 676 Td (create audit log and notify other assignees.) Tj ET
+BT /F1 10 Tf 45 652 Td (What is the actual persistence technology? In-memory JavaScript collections persisted as) Tj ET
+BT /F1 10 Tf 45 638 Td (JSON snapshots, not a relational or MongoDB server.) Tj ET
+BT /F1 10 Tf 45 614 Td (Is keyword search a database full-text index? No; it scans task strings with) Tj ET
+BT /F1 10 Tf 45 600 Td (case-insensitive substring checks.) Tj ET
+BT /F1 10 Tf 45 576 Td (Are the audit logs tamper-proof? No; normal operations append records, but local file) Tj ET
+BT /F1 10 Tf 45 562 Td (access can alter the JSON.) Tj ET
+BT /F1 10 Tf 45 538 Td (What should be checked before presenting? Run npm test and demonstrate the current browser) Tj ET
+BT /F1 10 Tf 45 524 Td (workflow locally. In the inspection environment, HTTP tests were blocked by local network) Tj ET
+BT /F1 10 Tf 45 510 Td (permissions, so browser end-to-end behaviour has not been independently verified here.) Tj ET
+BT /F1 8 Tf 510 25 Td (13) Tj ET
+endstream
+endobj
+xref
+0 31
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000198 00000 n 
+0000000268 00000 n 
+0000000336 00000 n 
+0000000472 00000 n 
+0000003371 00000 n 
+0000003507 00000 n 
+0000006540 00000 n 
+0000006677 00000 n 
+0000010650 00000 n 
+0000010788 00000 n 
+0000013869 00000 n 
+0000014007 00000 n 
+0000017184 00000 n 
+0000017322 00000 n 
+0000020703 00000 n 
+0000020841 00000 n 
+0000024182 00000 n 
+0000024320 00000 n 
+0000028004 00000 n 
+0000028142 00000 n 
+0000031666 00000 n 
+0000031804 00000 n 
+0000035404 00000 n 
+0000035542 00000 n 
+0000039687 00000 n 
+0000039825 00000 n 
+0000043100 00000 n 
+0000043238 00000 n 
+trailer
+<< /Size 31 /Root 1 0 R >>
+startxref
+44904
+%%EOF

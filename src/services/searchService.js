@@ -76,10 +76,23 @@ class SearchService {
         if (endDate && due > new Date(endDate)) return false;
       }
 
-      // Composite tag filtering
+      // Each filter can match a task tag, a priority, or a workflow status.
       if (Array.isArray(tags) && tags.length > 0) {
         const taskTags = (task.tags || []).map(t => t.toLowerCase());
-        const hasAllTags = tags.every(t => taskTags.includes(t.toLowerCase()));
+        const statusAliases = {
+          'to do': 'To-Do', 'todo': 'To-Do',
+          'in progress': 'In-Progress', 'progress': 'In-Progress',
+          'review': 'Review', 'in review': 'Review',
+          'done': 'Done'
+        };
+        const hasAllTags = tags.every(t => {
+          const label = t.trim().toLowerCase();
+          const normalized = label.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+          const status = statusAliases[normalized];
+          return taskTags.includes(label) ||
+            (task.priority || '').toLowerCase() === label ||
+            (status && task.status === status);
+        });
         if (!hasAllTags) return false;
       }
 

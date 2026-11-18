@@ -1,6 +1,8 @@
 const { db } = require('../models/Database');
 const { buildPdf } = require('./pdfDocument');
 
+const reportProgress = task => task.status === 'Done' ? 100 : task.progress_percentage;
+
 /**
  * Report Exporter Service
  * Owner: Harsh Pandya | PES1UG24CS182
@@ -43,7 +45,7 @@ class ReportExporter {
       escapeCsvField(t.title),
       escapeCsvField(t.priority),
       escapeCsvField(t.status),
-      escapeCsvField(t.progress_percentage),
+      escapeCsvField(reportProgress(t)),
       escapeCsvField(t.due_date),
       escapeCsvField(t.created_by),
       escapeCsvField((t.assignees || []).length),
@@ -71,7 +73,7 @@ class ReportExporter {
         title: t.title,
         priority: t.priority,
         status: t.status,
-        progress: `${t.progress_percentage}%`,
+        progress: `${reportProgress(t)}%`,
         due_date: t.due_date || 'None',
         assignees: (t.assignees || []).map(uid => {
           const u = db.getUser(uid);

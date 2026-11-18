@@ -1,0 +1,263 @@
+<!doctype html><html><head><meta charset="UTF-8"><style>@page{size:A4;margin:17mm}*{box-sizing:border-box}body{font:10.5pt/1.5 Arial,sans-serif;color:#15263b}h1{font-size:19pt;color:#123b67;border-bottom:2px solid #18a39a;padding-bottom:7px;margin:0 0 12px}h2{color:#126e74;font-size:13pt;margin:16px 0 6px}section{break-before:page}p{margin:8px 0}li{margin:5px 0}table{width:100%;border-collapse:collapse;font-size:9pt}td,th{text-align:left;border:1px solid #cad5df;padding:6px;vertical-align:top}th{background:#e6f1f4}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:7.3pt/1.32 Consolas,monospace;background:#eff4f7;padding:9px;border-left:3px solid #17a399}code{font:9pt Consolas,monospace;overflow-wrap:anywhere}.box{background:#e9f6f5;padding:12px;border-left:4px solid #179c92}.flow div{background:#eef4f7;padding:8px;margin:4px 0;border-left:3px solid #198c9a}.flow .arrow{background:white;border:0;color:#53697a;padding:2px}.cover{height:250mm;display:flex;flex-direction:column;justify-content:center}.cover h1{font-size:31pt;border:0}.cover p{font-size:14pt;color:#4b6075}</style></head><body><div class="cover"><p>SOFTWARE ENGINEERING • TEAM 4</p><h1>Task Manager<br>Architecture &amp; Complete Guide</h1><p>Special focus: Gagan B Sasalatti<br>Kanban, assignment and search</p><p>Current code review • 18 November 2026</p></div><section><h1>Project overview</h1><p>This is a multi-workspace task management application built for PES University Software Engineering. Team members sign in, work inside workspaces, manage tasks and subtasks, and monitor progress using a Kanban board, search and analytics.</p><table><tr><th>Feature set</th><th>Assigned owner in README</th><th>Area</th></tr><tr><td>A</td><td>Chetana V Iyer</td><td>Authentication, RBAC, workspaces</td></tr><tr><td>B</td><td>Dhadhal Rudra</td><td>Task CRUD, subtasks, attachments</td></tr><tr><td>C</td><td>Gagan B Sasalatti, PES1UG24CS164</td><td>Kanban, assignment, search and tags</td></tr><tr><td>D</td><td>Harsh Pandya</td><td>Analytics, reports, notifications and audit</td></tr></table><p>This guide distinguishes assigned ownership from proof of individual authorship. It documents the current checkout, including uncommitted changes, as inspected on 18 November 2026.</p><div class="box"><b>Your focus:</b> how tasks are grouped, moved and assigned; how search and tags work; and how the browser, routes, services and data store connect.</div></section><section><h1>Run and demonstrate</h1><h2>Start the server</h2><p>Install Node.js 18 or newer, open a terminal in the project folder and run:</p><pre>npm start</pre><p>Keep that window open. The default address is http://localhost:3000. Open /health to check the server, /kanban for the board and /analytics for analytics. PORT changes the listening port.</p><h2>Create sample data</h2><p>Open a second terminal in the same folder and run:</p><pre>npm run demo</pre><p>The demo requires the server to be running. It creates a user with a generated email such as demo&lt;timestamp&gt;@pes.edu, shown in its output, and password Passw0rd!x. It creates a workspace and sample task. The Kanban page also contains registration and workspace creation forms in the current checkout.</p><h2>Try your features</h2><p>Sign in, select or create a workspace, create tasks with tags, then move cards between columns. In search, type a keyword, or enter comma-separated tags and values such as <code>high, review</code>. Select sort field and order. Search updates after a short pause. For reports, use the CSV/PDF export buttons. The analytics page has its own login.</p><p>To apply backend changes, stop the server with Ctrl+C and run npm start again; refresh the browser. npm test runs the Node tests. Configure a strong JWT_SECRET outside demo use.</p></section><section><h1>Architecture: what connects to what</h1><div class="flow"><div><b>Browser</b><br>kanban.html / analytics.html</div><div class="arrow">HTTP requests with JSON and Bearer token</div><div><b>Node server + router</b><br>server.js starts; app.js routes, authenticates and checks access</div><div class="arrow">Calls handlers and feature logic</div><div><b>Controllers and services</b><br>Tasks, workspaces, Kanban, search, analytics, notifications</div><div class="arrow">Reads and updates objects</div><div><b>Database.js</b><br>In-memory Maps &rarr; JSON snapshot and backups</div></div><p><b>Router:</b> selects code based on URL and HTTP method. <b>Controller:</b> typically receives request data and sends a response. <b>Service:</b> contains feature or business logic. Some routes call services directly rather than going through a separate controller.</p><p>For example, a task move goes browser &rarr; POST /tasks/:id/move &rarr; requireTaskAccess &rarr; taskDragDrop.moveCard &rarr; Database.js, event broadcast, audit and notifications &rarr; JSON response.</p><p>Actual stack: Node's built-in HTTP server, plain HTML/CSS/JavaScript and a JSON-backed store. The SRS/SAD may describe React, Express or PostgreSQL; consult docs/SPRINT1_DEVIATIONS.md and the current code for differences.</p></section><section><h1>Repository and data model</h1><table><tr><th>Path</th><th>Responsibility</th></tr><tr><td>src/server.js</td><td>Start server, enable persistence, backups and deadline scheduler.</td></tr><tr><td>src/app.js</td><td>HTTP routing, request parsing, token and workspace/task access checks.</td></tr><tr><td>src/controllers/</td><td>Authentication, workspace, task, subtask and notification request handlers.</td></tr><tr><td>src/services/taskDragDrop.js</td><td>Your board, assignment and movement logic.</td></tr><tr><td>src/services/searchService.js</td><td>Your task search, filters, sorting and workspace tags.</td></tr><tr><td>src/services/realtimeService.js</td><td>Workspace-scoped server-sent event subscribers.</td></tr><tr><td>src/models/Database.js</td><td>In-memory collections and local JSON snapshot.</td></tr><tr><td>src/public/</td><td>Kanban and analytics browser pages.</td></tr><tr><td>tests/; scripts/demo.js</td><td>Automated tests and demonstration API client.</td></tr></table><p>Core entities: user; workspace; membership connecting a user to a workspace with a role; task belonging to a workspace with status, priority, assignees and tags; subtask and attachment metadata belonging to a task; notification and audit entry. Collections are held in Maps and serialized to data/database.json by default; backups go to data/backups. This is not SQL or MongoDB.</p></section><section><h1>Authentication, workspace and tasks</h1><p>Registration and login are handled by authController. Passwords use salted PBKDF2; a signed JWT identifies the logged-in user. The browser sends <code>Authorization: Bearer &lt;token&gt;</code>. The router rejects protected calls without a valid token. RBAC checks role and workspace membership: Admin and Member can contribute; Viewer can view. Workspace creation automatically assigns the creator as Admin.</p><p>TaskController handles task creation, viewing, editing, archive and permanent deletion. SubtaskController handles subtask operations; completed subtasks affect the stored progress percentage. Attachments in this implementation validate and store metadata, not actual file bytes. Email delivery is a logging stub; invitation and reset tokens are not delivered by a real mail service.</p><p>Request flow: frontend collects form values; app.js parses JSON and the token; a controller validates and invokes database/service functions; response JSON goes back to the browser. Workspace membership restricts access to the correct team.</p></section><section><h1>Your part A: Kanban board</h1><p>A Kanban board groups tasks into <b>To-Do, In-Progress, Review and Done</b>. Each task stores a status; there is no separate database table per column. The browser requests <code>GET /api/v1/workspaces/:workspaceId/kanban</code>; app.js verifies workspace access and invokes <code>getKanbanBoard(workspaceId)</code>.</p><ol><li>Fetch active tasks belonging to the workspace.</li><li>Create an array for each of the four statuses.</li><li>For each task, look at its status and append it to the matching array.</li><li>Look up assigned users and include names and initials as avatar data.</li><li>Return the grouped object for the browser to render.</li></ol><p>The taskDragDrop service is the backend implementation; the board DOM and drag events live in src/public/kanban.html. The result contains enriched task objects; the original task is not permanently changed merely by building the board.</p><h2>Actual code: grouping</h2><pre> 69   getKanbanBoard(workspaceId) {
+ 70     const allTasks = db.findTasks(t =&gt; t.workspace_id === workspaceId);
+ 71 
+ 72     const board = {
+ 73       'To-Do': [],
+ 74       'In-Progress': [],
+ 75       'Review': [],
+ 76       'Done': []
+ 77     };
+ 78 
+ 79     allTasks.forEach(task =&gt; {
+ 80       const col = task.status;
+ 81       if (board[col]) {
+ 82         // Hydrate avatar indicators for assignees
+ 83         const hydratedAssignees = (task.assignees || []).map(uid =&gt; {
+ 84           const user = db.getUser(uid);
+ 85           return user
+ 86             ? { user_id: uid, name: user.full_name, initials: user.full_name.split(' ').map(n =&gt; n[0]).join('').toUpperCase() }
+ 87             : { user_id: uid, name: 'Unknown', initials: '?' };
+ 88         });
+ 89 
+ 90         board[col].push({
+ 91           ...task,
+ 92           assignee_avatars: hydratedAssignees
+ 93         });
+ 94       }
+ 95     });
+ 96 
+ 97     return board;</pre><p><b>Understand:</b> <code>findTasks</code> filters by workspace. <code>board[col]</code> chooses a column. The array <code>map</code> transforms assignee IDs into display data; <code>push</code> adds the card to its column.</p></section><section><h1>Your part B: moving a task</h1><p>When a user moves a card, the page makes an optimistic update: it changes the displayed board immediately, sends POST /api/v1/tasks/:taskId/move, and restores the snapshot if the request fails. The request body contains <code>{"targetColumn":"In-Progress"}</code>. The actor ID comes from the authenticated token.</p><ol><li>The router checks write access to the task's workspace.</li><li>moveCard checks the target is a valid status and finds the task.</li><li>If old and new statuses are equal, it returns transitioned: false.</li><li>Otherwise it updates status, publishes task.moved, records an audit event and notifies assignees other than the actor.</li><li>It returns the updated task and both statuses.</li></ol><p>These are separate operations, not a single database transaction. The backend publishes server-sent events to workspace subscribers; the notification/audit page refreshes through polling, so do not describe the complete interface as instant push.</p><h2>Actual code: moveCard</h2><pre>103    */
+104   moveCard(taskId, targetColumn, actorId) {
+105     if (!KANBAN_COLUMNS.includes(targetColumn)) {
+106       throw new Error(`Invalid Kanban column: '${targetColumn}'. Must be one of: ${KANBAN_COLUMNS.join(', ')}.`);
+107     }
+108 
+109     const task = db.getTask(taskId);
+110     if (!task) {
+111       throw new Error(`Task '${taskId}' was not found.`);
+112     }
+113 
+114     const previousStatus = task.status;
+115     if (previousStatus === targetColumn) {
+116       return { task, transitioned: false };
+117     }
+118 
+119     const updatedTask = db.updateTask(taskId, { status: targetColumn });
+120 
+121     // Broadcast to other viewers of this workspace and write the audit log (REQ-5.3 &amp; REQ-8.3)
+122     realtimeService.publish(task.workspace_id, 'task.moved', {
+123       task_id: taskId,
+124       from: previousStatus,
+125       to: targetColumn,
+126       actor_id: actorId,
+127       task: updatedTask
+128     });
+129     db.logAuditEvent({
+130       workspace_id: task.workspace_id,
+131       actor_id: actorId,
+132       action: 'KANBAN_STATUS_TRANSITION',
+133       target_entity: 'TASK',
+134       target_id: taskId,
+135       details: { from: previousStatus, to: targetColumn }
+136     });
+137 
+138     // Notify assignees about status change
+139     (task.assignees || []).forEach(assigneeId =&gt; {
+140       if (assigneeId !== actorId) {
+141         db.createNotification({
+142           user_id: assigneeId,
+143           title: 'Task Status Updated',
+144           message: `Task '${task.title}' moved from '${previousStatus}' to '${targetColumn}'.`,
+145           type: 'STATUS_CHANGE',
+146           target_entity_id: taskId
+147         });
+148       }
+149     });
+150 
+151     return {
+152       task: updatedTask,
+153       transitioned: true,
+154       previous_status: previousStatus,</pre></section><section><h1>Your part C: assignment</h1><p>Assignment answers who is responsible for a task. POST /api/v1/tasks/:taskId/assign accepts <code>{"userIds":["user-1","user-2"]}</code>. The router checks the actor's write access; assignCollaborators checks the task exists and the IDs are supplied as an array.</p><p>For each ID, rbacService.isMember checks membership of that task's workspace. If an outsider is included, the service throws before updating. On success it replaces the task's assignee array, creates assignment notifications and writes an audit entry.</p><div class="box"><b>Important:</b> the supplied list replaces existing assignees; send all people who should remain assigned. An empty array clears the assignment. The backend route exists; verify whether the current UI exposes an assignment control before promising an in-browser demo.</div><h2>Actual code: assignment</h2><pre> 20   assignCollaborators(taskId, userIds, actorId) {
+ 21     const task = db.getTask(taskId);
+ 22     if (!task) {
+ 23       throw new Error(`Task '${taskId}' was not found.`);
+ 24     }
+ 25 
+ 26     if (!Array.isArray(userIds)) {
+ 27       throw new Error('userIds must be an array.');
+ 28     }
+ 29 
+ 30     // Enforce Business Rule 1
+ 31     for (const uid of userIds) {
+ 32       const isMember = rbacService.isMember(task.workspace_id, uid);
+ 33       if (!isMember) {
+ 34         throw new Error(`Business Rule 1 Violation: User '${uid}' is not a member of workspace '${task.workspace_id}'.`);
+ 35       }
+ 36     }
+ 37 
+ 38     const updated = db.updateTask(taskId, { assignees: userIds });
+ 39 
+ 40     // Trigger Notification for assigned users
+ 41     for (const uid of userIds) {
+ 42       db.createNotification({
+ 43         user_id: uid,
+ 44         title: 'Task Assigned',
+ 45         message: `You were assigned to task: ${task.title}`,
+ 46         type: 'ASSIGNMENT',
+ 47         target_entity_id: taskId
+ 48       });
+ 49     }
+ 50 
+ 51     // Trigger Audit Log
+ 52     db.logAuditEvent({
+ 53       workspace_id: task.workspace_id,
+ 54       actor_id: actorId,
+ 55       action: 'COLLABORATOR_ASSIGNED',
+ 56       target_entity: 'TASK',
+ 57       target_id: taskId,
+ 58       details: { assignees: userIds }
+ 59     });
+ 60 
+ 61     return updated;</pre></section><section><h1>Your part D: keyword search and tags</h1><p>The page requests GET /api/v1/search/tasks with workspace_id, q, tags and sort parameters. The route verifies workspace membership. The frontend fetches matching IDs and filters the board cards; sorting is applied inside each status column. Search inputs are debounced for 300 ms.</p><h2>Keyword search</h2><p>queryTasks scans tasks and uses lowercase <code>includes()</code> against title, description and tag labels. This is case-insensitive substring search in JavaScript, not an indexed database full-text search engine. Searching 'login' finds 'Login page'.</p><h2>Composite filters</h2><p>Tags are comma-separated and every entered filter must match. The tags field also recognises priority values High, Medium and Low, and workflow labels such as review / in review, to do, in progress and done. Example: <code>high, review</code> matches a High-priority task in Review. Actual task tags also match. Keyword and tag criteria combine with AND. Task creation/editing accepts comma-separated task tags.</p><p>The backend also accepts priority, status, assignee and due-date filters, but not every backend filter has a corresponding UI control. Date filters exclude undated tasks. Avoid confusing the separate workspace coloured-tag catalog with tag strings stored on tasks.</p><h2>Actual code: search</h2><pre> 45 
+ 46     // 1. Initial filtered set
+ 47     let results = db.findTasks(task =&gt; {
+ 48       // Workspace boundary
+ 49       if (workspaceId &amp;&amp; task.workspace_id !== workspaceId) return false;
+ 50 
+ 51       // REQ-6.1: Full-Text Search across title, description, and tag labels
+ 52       if (queryText &amp;&amp; queryText.trim()) {
+ 53         const needle = queryText.toLowerCase().trim();
+ 54         const titleMatch = task.title.toLowerCase().includes(needle);
+ 55         const descMatch = (task.description || '').toLowerCase().includes(needle);
+ 56         const tagMatch = (task.tags || []).some(t =&gt; t.toLowerCase().includes(needle));
+ 57 
+ 58         if (!titleMatch &amp;&amp; !descMatch &amp;&amp; !tagMatch) {
+ 59           return false;
+ 60         }
+ 61       }
+ 62 
+ 63       // REQ-6.2: Multi-Attribute Filtering
+ 64       if (priority &amp;&amp; task.priority !== priority) return false;
+ 65       if (status &amp;&amp; task.status !== status) return false;
+ 66       if (assigneeId) {
+ 67         const assignees = task.assignees || [];
+ 68         if (!assignees.includes(assigneeId)) return false;
+ 69       }
+ 70 
+ 71       // Date range filtering: tasks with no due date never match a range
+ 72       if (startDate || endDate) {
+ 73         if (!task.due_date) return false;
+ 74         const due = new Date(task.due_date);
+ 75         if (startDate &amp;&amp; due &lt; new Date(startDate)) return false;
+ 76         if (endDate &amp;&amp; due &gt; new Date(endDate)) return false;
+ 77       }
+ 78 
+ 79       // Each filter can match a task tag, a priority, or a workflow status.
+ 80       if (Array.isArray(tags) &amp;&amp; tags.length &gt; 0) {
+ 81         const taskTags = (task.tags || []).map(t =&gt; t.toLowerCase());
+ 82         const statusAliases = {
+ 83           'to do': 'To-Do', 'todo': 'To-Do',
+ 84           'in progress': 'In-Progress', 'progress': 'In-Progress',
+ 85           'review': 'Review', 'in review': 'Review',
+ 86           'done': 'Done'
+ 87         };
+ 88         const hasAllTags = tags.every(t =&gt; {
+ 89           const label = t.trim().toLowerCase();
+ 90           const normalized = label.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+ 91           const status = statusAliases[normalized];
+ 92           return taskTags.includes(label) ||
+ 93             (task.priority || '').toLowerCase() === label ||
+ 94             (status &amp;&amp; task.status === status);
+ 95         });
+ 96         if (!hasAllTags) return false;
+ 97       }
+ 98 
+ 99       return true;
+100     }, includeArchived);
+101 
+102     // REQ-6.3: Sorting by due date or priority level
+103     results.sort((a, b) =&gt; {
+104       let comparison = 0;</pre></section><section><h1>Your part E: sorting and routes</h1><p>queryTasks sorts by created_at, due_date, priority or title. High, Medium and Low map to 3, 2 and 1. Ascending keeps the comparator direction; descending reverses it. The default is creation date descending. No due date is put last in either direction. Search returns total, execution_time_ms and matching data.</p><h2>Actual code: sorting</h2><pre>106       if (sortBy === 'priority') {
+107         const valA = PRIORITY_ORDER[a.priority] || 0;
+108         const valB = PRIORITY_ORDER[b.priority] || 0;
+109         comparison = valA - valB;
+110       } else if (sortBy === 'due_date') {
+111         const timeA = a.due_date ? new Date(a.due_date).getTime() : (sortOrder === 'asc' ? Infinity : -Infinity);
+112         const timeB = b.due_date ? new Date(b.due_date).getTime() : (sortOrder === 'asc' ? Infinity : -Infinity);
+113         comparison = timeA - timeB;
+114       } else if (sortBy === 'title') {
+115         comparison = a.title.localeCompare(b.title);
+116       } else {
+117         // Default created_at
+118         comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+119       }
+120 
+121       return sortOrder === 'desc' ? -comparison : comparison;
+122     });
+123 
+124     const executionTimeMs = Date.now() - startTime;
+125 
+126     return {
+127       total: results.length,
+128       execution_time_ms: executionTimeMs, // Verifies &lt; 100ms requirement per REQ-6.1 stimulus
+129       data: results
+130     };
+131   }
+132 
+133   /**
+134    * REQ-6.3: Create and manage colored tags
+135    */
+136   createTag({ workspaceId, name, color = '#3b82f6' }) {
+137     if (typeof name !== 'string' || !name.trim()) {
+138       throw validationError('Tag name is required.');
+139     }</pre><h2>Actual code: route to service</h2><pre>219 
+220       // 4. Kanban &amp; Workflow Routes (Feature 5)
+221       const wsKanbanMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/kanban$/);
+222       if (method === 'GET' &amp;&amp; wsKanbanMatch) {
+223         if (!requireWorkspaceAccess(req, res, wsKanbanMatch[1])) return;
+224         const board = taskDragDrop.getKanbanBoard(wsKanbanMatch[1]);
+225         return res.status(200).json({ success: true, data: board });
+226       }
+227       const wsEventsMatch = pathname.match(/^\/api\/v1\/workspaces\/([^/]+)\/events$/);
+228       if (method === 'GET' &amp;&amp; wsEventsMatch) {
+229         if (!requireWorkspaceAccess(req, res, wsEventsMatch[1])) return;
+230         return realtimeService.subscribe(wsEventsMatch[1], req, res);
+231       }
+232       const taskMoveMatch = pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/move$/);
+233       if (method === 'POST' &amp;&amp; taskMoveMatch) {
+234         const taskId = taskMoveMatch[1];
+235         if (!requireTaskAccess(req, res, taskId, true)) return;
+236         const { targetColumn } = req.body;
+237         const result = taskDragDrop.moveCard(taskId, targetColumn, req.user.userId);
+238         return res.status(200).json({ success: true, data: result });
+239       }
+240       const taskAssignMatch = pathname.match(/^\/api\/v1\/tasks\/([^/]+)\/assign$/);
+241       if (method === 'POST' &amp;&amp; taskAssignMatch) {
+242         const taskId = taskAssignMatch[1];
+243         if (!requireTaskAccess(req, res, taskId, true)) return;
+244         const { userIds } = req.body;
+245         const result = taskDragDrop.assignCollaborators(taskId, userIds, req.user.userId);
+246         return res.status(200).json({ success: true, data: result });
+247       }
+248 
+249       // 5. Search &amp; Filtering Routes (Feature 6)
+250       if (method === 'GET' &amp;&amp; pathname === '/api/v1/search/tasks') {
+251         if (!req.query.workspace_id) {
+252           return res.status(400).json({ success: false, error: 'Validation Error', message: 'workspace_id is required.' });
+253         }
+254         if (!requireWorkspaceAccess(req, res, req.query.workspace_id)) return;
+255         const results = searchService.queryTasks({
+256           workspaceId: req.query.workspace_id,
+257           queryText: req.query.q,
+258           priority: req.query.priority,
+259           status: req.query.status,
+260           assigneeId: req.query.assignee_id,
+261           startDate: req.query.start_date,
+262           endDate: req.query.end_date,
+263           tags: req.query.tags ? req.query.tags.split(',') : undefined,
+264           sortBy: req.query.sort_by,
+265           sortOrder: req.query.sort_order
+266         });
+267         return res.status(200).json({ success: true, ...results });
+268       }
+269 </pre><p>In the route, a regular expression captures the ID from the URL. <code>req.query</code> holds URL query parameters, <code>req.body</code> holds parsed JSON, and <code>req.user</code> comes from the verified JWT. For a search the workspace_id is required, then access is checked before results are returned.</p></section><section><h1>Analytics and report exports</h1><p>AnalyticsService computes total, completed, overdue, completion rate and team velocity. Velocity uses tasks <b>currently Done</b> whose updated_at falls inside the selected window: <code>(count / sprintDays) * 7</code>, rounded to one decimal. It is an estimate, not a recorded history of completion events; editing a completed task can change updated_at.</p><p>The analytics page displays status distribution, member workload and a completion bar, plus the calculated tasks-per-week figure. Workload counts assigned and completed tasks per member. It uses the distribution and KPI endpoints.</p><p>ReportExporter produces CSV and PDF. Completed tasks are displayed as 100% in both exports; other tasks use their stored progress. PDF uses exportToDocumentSummary and a simple built-in PDF writer. CSV includes archived tasks; document summary/PDF uses active tasks. Non-Latin characters may not render correctly in the PDF's built-in font.</p></section><section><h1>Notifications, audit and timing</h1><p>The deadline scheduler checks open tasks due within the next 24 hours (including overdue tasks) and creates a notification for each assignee, suppressing repeats for 24 hours. It runs at startup and then hourly by default. The current Kanban interface polls notifications and workspace audit activity every 10 seconds; users can mark their notifications read. The scheduler is periodic, so this is not an exact deadline-time push.</p><p>Audit records contain workspace, actor, action, target, details and timestamp. Entries are frozen in memory and there is no normal audit editing API, but data is stored in a local JSON file that can be modified by someone with file access. It is not a tamper-proof immutable audit system.</p><p>Backend task-move SSE is separate from feed polling: realtimeService keeps workspace subscriber connections and publishes task.moved events. Open streams are checked for workspace access, and can be disconnected on membership removal.</p></section><section><h1>API reference</h1><table><tr><th>Endpoint</th><th>Use</th></tr><tr><td>POST /api/v1/auth/register, /login</td><td>Account and authentication</td></tr><tr><td>GET / POST /api/v1/workspaces</td><td>List / create workspaces</td></tr><tr><td>GET /api/v1/workspaces/:id/kanban</td><td>Board grouped by status</td></tr><tr><td>POST /api/v1/tasks/:id/move</td><td>Change status</td></tr><tr><td>POST /api/v1/tasks/:id/assign</td><td>Replace assignee list</td></tr><tr><td>GET /api/v1/search/tasks</td><td>Keyword, tags, filters and sorting</td></tr><tr><td>GET / POST /api/v1/workspaces/:id/tags</td><td>List / create coloured tags</td></tr><tr><td>GET /api/v1/workspaces/:id/analytics/kpi</td><td>KPIs and velocity</td></tr><tr><td>GET /api/v1/workspaces/:id/analytics/distribution</td><td>Status and workload charts</td></tr><tr><td>GET /api/v1/workspaces/:id/reports/csv or /pdf</td><td>Download reports</td></tr><tr><td>GET /api/v1/users/:id/notifications</td><td>Own notifications</td></tr><tr><td>POST /api/v1/notifications/:id/read</td><td>Mark own notification read</td></tr><tr><td>GET /api/v1/workspaces/:id/audit-logs</td><td>Workspace activity</td></tr><tr><td>GET /api/v1/workspaces/:id/events</td><td>Workspace event stream</td></tr></table><p>Protected routes generally require a Bearer token. See src/app.js for remaining task, subtask, attachment, invitation and workspace endpoints.</p></section><section><h1>Viva preparation and limitations</h1><p><b>What did your assigned feature set cover?</b> Kanban task grouping and movement, collaborator assignment, searching, filtering, sorting and tags.</p><p><b>How does multi-tag filtering work?</b> Every supplied filter must match a task tag or a recognised priority/status. Keyword criteria are also applied.</p><p><b>How do you prevent assigning an outsider?</b> Check each requested ID with rbacService.isMember before updating the task.</p><p><b>What happens on a move?</b> Validate status and access, update task, publish the move event, create audit log and notify other assignees.</p><p><b>What is the actual persistence technology?</b> In-memory JavaScript collections persisted as JSON snapshots, not a relational or MongoDB server.</p><p><b>Is keyword search a database full-text index?</b> No; it scans task strings with case-insensitive substring checks.</p><p><b>Are the audit logs tamper-proof?</b> No; normal operations append records, but local file access can alter the JSON.</p><p><b>What should be checked before presenting?</b> Run npm test and demonstrate the current browser workflow locally. In the inspection environment, HTTP tests were blocked by local network permissions, so browser end-to-end behaviour has not been independently verified here.</p></section></body></html>
