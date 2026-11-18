@@ -78,11 +78,16 @@ function createServer() {
     req.query = parsedUrl.query;
     req.params = {};
 
-    // Extract Bearer token if present
+    // Extract Bearer token if present (or query token for EventSource SSE)
+    let authToken = null;
     const authHeader = req.headers['authorization'] || req.headers['Authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      const decoded = verifyJWT(token);
+      authToken = authHeader.split(' ')[1];
+    } else if (req.query && req.query.token) {
+      authToken = req.query.token;
+    }
+    if (authToken) {
+      const decoded = verifyJWT(authToken);
       if (decoded) req.user = decoded;
     }
 

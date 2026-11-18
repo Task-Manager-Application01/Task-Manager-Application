@@ -335,6 +335,29 @@
   let boardRequestId = 0;
   let feedTimer = null;
   let searchTimer = null;
+  let sseSource = null;
+  let sseWorkspaceId = null;
+  let syncTimer = null;
+
+  function connectRealtime(wsId) {
+    if (sseWorkspaceId === wsId && sseSource && sseSource.readyState !== 2) return;
+    if (sseSource) {
+      try { sseSource.close(); } catch (_) {}
+      sseSource = null;
+      sseWorkspaceId = null;
+    }
+    if (!token || !wsId) return;
+    try {
+      sseSource = new EventSource(`/api/v1/workspaces/${encodeURIComponent(wsId)}/events?token=${encodeURIComponent(token)}`);
+      sseWorkspaceId = wsId;
+      sseSource.addEventListener('task.moved', () => {
+        if (!draggedId && !activeDetailTaskId) loadBoard();
+      });
+      sseSource.addEventListener('message', () => {
+        if (!draggedId && !activeDetailTaskId) loadBoard();
+      });
+    } catch (_) {}
+  }
   const roles = new Map(); // workspace_id -> role
   const el = id => document.getElementById(id);
 
@@ -590,6 +613,16 @@
     const requestId = ++boardRequestId;
     currentWorkspaceId = workspaceId;
     el('search-section').hidden = !workspaceId;
+    if (workspaceId) {
+      connectRealtime(workspaceId);
+      if (!syncTimer) {
+        syncTimer = setInterval(() => {
+          if (token && currentWorkspaceId && !draggedId && !activeDetailTaskId) {
+            loadBoard();
+          }
+        }, 3000);
+      }
+    }
     if (!workspaceId) return;
     canMove = roles.get(workspaceId) !== 'Viewer';
     el('task-section').hidden = !canMove;
@@ -843,6 +876,15 @@
     matchingTaskIds = null;
     el('search-form').reset();
     el('search-section').hidden = true;
+    if (sseSource) {
+      try { sseSource.close(); } catch (_) {}
+      sseSource = null;
+      sseWorkspaceId = null;
+    }
+    if (syncTimer) {
+      clearInterval(syncTimer);
+      syncTimer = null;
+    }
     token = null;
     currentUserId = null;
     el('login-section').hidden = false;
