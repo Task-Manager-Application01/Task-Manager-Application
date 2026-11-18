@@ -184,6 +184,10 @@
       <label>Keyword <input id="search-keyword" type="search" placeholder="Search titles, descriptions and tags"></label>
       <label>Tags, priority or status <input id="search-tags" type="text" placeholder="e.g. high, in review" aria-describedby="search-tags-help"></label>
       <p id="search-tags-help">Separate filters with commas, e.g. high, review. Tasks must match all filters.</p>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+        <label style="margin:0">Due on or after (Start date) <input id="search-start-date" type="date"></label>
+        <label style="margin:0">Due on or before (End date) <input id="search-end-date" type="date"></label>
+      </div>
       <label>Sort by <select id="search-sort"><option value="created_at">Date created</option><option value="due_date">Due date</option><option value="priority">Priority</option><option value="title">Title</option></select></label>
       <label>Sort order <select id="search-order"><option value="desc">Descending</option><option value="asc">Ascending</option></select></label>
       <div class="button-row">
@@ -325,7 +329,7 @@
   let draggedId = null;
   let currentWorkspaceId = null;
   let activeDetailTaskId = null;
-  let searchFilters = { keyword: '', tags: [] };
+  let searchFilters = { keyword: '', tags: [], startDate: '', endDate: '' };
   let matchingTaskIds = null;
   let resultOrder = new Map();
   let boardRequestId = 0;
@@ -463,7 +467,8 @@
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = `Priority: ${task.priority}`;
+    const dueLabel = task.due_date ? ` · Due: ${task.due_date}` : '';
+    meta.textContent = `Priority: ${task.priority}${dueLabel}`;
 
     const progress = document.createElement('div');
     progress.className = 'progress';
@@ -598,11 +603,15 @@
         const params = new URLSearchParams({ workspace_id: workspaceId });
         if (searchFilters.keyword) params.set('q', searchFilters.keyword);
         if (searchFilters.tags.length) params.set('tags', searchFilters.tags.join(','));
+        if (searchFilters.startDate) params.set('start_date', searchFilters.startDate);
+        if (searchFilters.endDate) params.set('end_date', searchFilters.endDate);
         params.set('sort_by', el('search-sort').value);
         params.set('sort_order', el('search-order').value);
         const results = await api(`/api/v1/search/tasks?${params}`);
         nextOrder = new Map(results.map((task, index) => [task.task_id, index]));
-        if (searchFilters.keyword || searchFilters.tags.length) nextMatches = new Set(results.map(task => task.task_id));
+        if (searchFilters.keyword || searchFilters.tags.length || searchFilters.startDate || searchFilters.endDate) {
+          nextMatches = new Set(results.map(task => task.task_id));
+        }
       }
       if (requestId !== boardRequestId) return;
       board = nextBoard;
@@ -625,7 +634,9 @@
   function applySearch() {
     searchFilters = {
       keyword: el('search-keyword').value.trim(),
-      tags: el('search-tags').value.split(',').map(tag => tag.trim()).filter(Boolean)
+      tags: el('search-tags').value.split(',').map(tag => tag.trim()).filter(Boolean),
+      startDate: el('search-start-date').value,
+      endDate: el('search-end-date').value
     };
     loadBoard();
   }
@@ -634,15 +645,15 @@
     clearTimeout(searchTimer);
     applySearch();
   });
-  for (const id of ['search-keyword', 'search-tags']) el(id).addEventListener('input', () => {
+  for (const id of ['search-keyword', 'search-tags', 'search-start-date', 'search-end-date']) el(id).addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(applySearch, 300);
   });
-  for (const id of ['search-sort', 'search-order']) el(id).addEventListener('change', applySearch);
+  for (const id of ['search-start-date', 'search-end-date', 'search-sort', 'search-order']) el(id).addEventListener('change', applySearch);
   el('clear-search').addEventListener('click', () => {
     clearTimeout(searchTimer);
     el('search-form').reset();
-    searchFilters = { keyword: '', tags: [] };
+    searchFilters = { keyword: '', tags: [], startDate: '', endDate: '' };
     loadBoard();
   });
   async function loadFeeds() {
@@ -828,7 +839,7 @@
     el('notifications-list').replaceChildren();
     el('audit-list').replaceChildren();
     boardRequestId++;
-    searchFilters = { keyword: '', tags: [] };
+    searchFilters = { keyword: '', tags: [], startDate: '', endDate: '' };
     matchingTaskIds = null;
     el('search-form').reset();
     el('search-section').hidden = true;
